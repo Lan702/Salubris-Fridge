@@ -254,7 +254,7 @@ tbody td.remark-cell:hover { color: var(--text); }
       <h2>📝 新增样品入库</h2>
       <div class="form-grid">
         <div class="form-group"><label>入库日期</label><input type="date" id="inpDate"></div>
-        <div class="form-group"><label>入库人员</label><input type="text" id="inpPerson" placeholder="填写入库人员姓名"></div>
+        <div class="form-group"><label>入库人员 <span style="color:var(--red)">*</span></label><input type="text" id="inpPerson" placeholder="必填，填写入库人员姓名" required></div>
         <div class="form-group"><label>项目编号</label><input type="text" id="inpProject" placeholder="输入3位数，如133"></div>
         <div class="form-group">
           <label>大层（从上往下数）</label>
@@ -442,7 +442,6 @@ function renderLoginForm() {
       <button class="auth-btn primary" onclick="doLogin()">登录</button>
       <button class="auth-btn secondary" onclick="renderRegisterForm()">没有账号？点击注册</button>
     </div>
-    <div class="hint">初始管理员账号: <b>admin</b> / <b>admin123</b></div>
   `;
   document.getElementById('authUser').focus();
   document.getElementById('authPass').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
@@ -580,8 +579,7 @@ async function loadSamples() {
     showToast('⚠ 无法加载数据，请刷新重试', 'error');
   }
   connectWS();
-  updateHeaderStats();
-  renderFreezers();
+  refreshUI();
 }
 
 // ── WebSocket ─────────────────────────────────────────
@@ -750,7 +748,7 @@ function updateCoordPreview() {
     const nextSlot = getNextL1Slot();
     const coords = positions.map((_, i) => `<span class="coord-chip">L1-${nextSlot + i}</span>`);
     coordPreview.innerHTML=`<span>📋 坐标：</span><div class="coords">${coords.join('')}</div>`;
-    btnSubmit.disabled = !(positions.length>0 && inpDate.value && inpProject.value);
+    btnSubmit.disabled = !(positions.length>0 && inpDate.value && inpPerson.value.trim() && inpProject.value);
     return;
   }
   if (c>0 && r>0 && positions.length>0) {
@@ -759,10 +757,10 @@ function updateCoordPreview() {
   } else {
     coordPreview.innerHTML='<span style="color:var(--text-dim)">请选择列 (C1~C6) 和行 (R1~R5) 并勾选小格</span>';
   }
-  btnSubmit.disabled = !(l>0 && (l===1?true:c>0&&r>0) && positions.length>0 && inpDate.value && inpProject.value);
+  btnSubmit.disabled = !(l>0 && (l===1?true:c>0&&r>0) && positions.length>0 && inpDate.value && inpPerson.value.trim() && inpProject.value);
 }
 
-[inpCol,inpRow,inpDate,inpProject].forEach(el=>{
+[inpCol,inpRow,inpDate,inpPerson,inpProject].forEach(el=>{
   el.addEventListener('change',updateCoordPreview);
   el.addEventListener('input',updateCoordPreview);
 });
@@ -770,6 +768,9 @@ function updateCoordPreview() {
 btnSubmit.addEventListener('click',async ()=>{
   const positions=getCheckedPositions();
   if(positions.length===0){showToast('请至少选择一个小格','error');return;}
+  if(!inpDate.value){showToast('请选择入库日期','error');return;}
+  if(!inpPerson.value.trim()){showToast('请填写入库人员','error');return;}
+  if(!inpProject.value.trim()){showToast('请填写项目编号','error');return;}
   const l=parseInt(inpLayer.value);
   if(!l){showToast('请选择大层','error');return;}
   const om=getOccupiedMap();
@@ -780,8 +781,7 @@ btnSubmit.addEventListener('click',async ()=>{
     const sampleData={ date:inpDate.value, person:inpPerson.value||'', project:inpProject.value, layer:1, col:0, row:0, positions: assignedPositions, status:'keep', remark:inpRemark.value||'' };
     try {
       const saved = await apiFetch('/api/samples', { method: 'POST', body: JSON.stringify(sampleData) });
-      samples.push(saved);
-      updateHeaderStats();
+      loadSamples();
       showToast(`✓ 入库成功！${saved.project} → L1-${assignedPositions[0]}~L1-${assignedPositions[assignedPositions.length-1]}`);
       resetForm();
     } catch(e) { showToast('⚠ 入库失败: '+e.message,'error'); }
@@ -796,8 +796,7 @@ btnSubmit.addEventListener('click',async ()=>{
   const sampleData={ date:inpDate.value, person:inpPerson.value||'', project:inpProject.value, layer:l, col:c, row:row, positions:positions, status:'keep', remark:inpRemark.value||'' };
   try {
     const saved = await apiFetch('/api/samples', { method: 'POST', body: JSON.stringify(sampleData) });
-    samples.push(saved);
-    updateHeaderStats();
+    loadSamples();
     showToast(`✓ 入库成功！${saved.project} → L${l}C${c}R${row}`);
     resetForm();
   } catch(e) { showToast('⚠ 入库失败: '+e.message,'error'); }
