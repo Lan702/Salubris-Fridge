@@ -9,6 +9,7 @@ const Database = require('better-sqlite3');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const path = require('path');
+const fs = require('fs');
 const os = require('os');
 
 const app = express();
@@ -20,7 +21,18 @@ const JWT_EXPIRES = process.env.JWT_EXPIRES || '30d';
 const PORT = process.env.PORT || 8089;
 
 // ── SQLite ──────────────────────────────────────────────
-const db = new Database(path.join(__dirname, 'freezer.db'));
+const DATA_DIR = process.env.DATA_DIR || __dirname;
+const dbPath = path.join(DATA_DIR, 'freezer.db');
+
+// Auto-migrate: if old DB exists locally but not in persistent volume, copy it
+const oldDbPath = path.join(__dirname, 'freezer.db');
+if (DATA_DIR !== __dirname && fs.existsSync(oldDbPath) && !fs.existsSync(dbPath)) {
+  console.log('🔄 搬迁已有数据到持久化存储卷...');
+  fs.copyFileSync(oldDbPath, dbPath);
+  console.log('✅ 数据迁移完成');
+}
+
+const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
 
 // Users table
