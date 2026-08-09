@@ -243,6 +243,7 @@ tbody td.remark-cell:hover { color: var(--text); }
     <div class="tab active" data-tab="entry">📋 录入界面</div>
     <div class="tab" data-tab="list">📊 样品清单 <span class="badge" id="listBadge">0</span></div>
     <div class="tab" data-tab="freezer">🧊 冰箱示意图</div>
+    <div class="tab admin-only" data-tab="users" id="tabUsers" style="display:none">👥 用户管理</div>
   </div>
 
   <div class="content">
@@ -361,6 +362,28 @@ tbody td.remark-cell:hover { color: var(--text); }
       </div>
     </div>
     <div id="freezersGrid"></div>
+  </div>
+
+  <!-- Tab 4: User Management -->
+  <div class="tab-content" id="tab-users">
+    <div class="list-toolbar">
+      <input class="search-box" type="text" id="userSearch" placeholder="🔍 搜索用户名或显示名...">
+      <div class="toolbar-right">
+        <span style="color:var(--text-dim);font-size:13px">共 <b id="userCount" style="color:var(--accent)">0</b> 个用户</span>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <div class="scroll-area">
+        <table id="userTable"><thead><tr>
+          <th style="width:50px">ID</th>
+          <th>用户名</th>
+          <th>显示名</th>
+          <th>角色</th>
+          <th>注册时间</th>
+          <th style="width:80px">操作</th>
+        </tr></thead><tbody></tbody></table>
+      </div>
+    </div>
   </div>
 
   </div>
@@ -505,6 +528,10 @@ function showApp() {
   // Update user info
   document.getElementById('userName').textContent = currentUser.display_name;
   document.getElementById('userAvatar').textContent = currentUser.display_name.charAt(0);
+  // Show admin tab
+  if (currentUser.role === 'admin') {
+    document.getElementById('tabUsers').style.display = '';
+  }
   // Load data
   loadSamples();
 }
@@ -673,6 +700,7 @@ document.querySelectorAll('.tab').forEach(t=>{
     document.getElementById('tab-'+t.dataset.tab).classList.add('active');
     if(t.dataset.tab==='list') renderTable();
     if(t.dataset.tab==='freezer') renderFreezers();
+    if(t.dataset.tab==='users') loadUsers();
   });
 });
 
@@ -1170,6 +1198,57 @@ function showToast(msg,type='success'){
   toast.textContent=msg;toast.className='toast show'+(type==='error'?' error':'');
   setTimeout(()=>toast.classList.remove('show'),3000);
 }
+
+// ===================== USER MANAGEMENT =====================
+let allUsers = [];
+
+async function loadUsers() {
+  try {
+    allUsers = await apiFetch('/api/users');
+    renderUserTable();
+  } catch(e) {
+    showToast('⚠ 加载用户列表失败: '+e.message, 'error');
+  }
+}
+
+function renderUserTable() {
+  const q = (document.getElementById('userSearch')?.value || '').toLowerCase();
+  let filtered = allUsers;
+  if (q) {
+    filtered = allUsers.filter(u =>
+      u.username.toLowerCase().includes(q) || u.display_name.toLowerCase().includes(q)
+    );
+  }
+  document.getElementById('userCount').textContent = filtered.length;
+  const tbody = document.querySelector('#userTable tbody');
+  tbody.innerHTML = filtered.map(u => {
+    const isMe = u.id === currentUser.id;
+    const roleBadge = u.role === 'admin'
+      ? '<span style="background:rgba(255,165,0,0.2);color:#ffa500;padding:1px 8px;border-radius:10px;font-size:11px">管理员</span>'
+      : '<span style="background:rgba(88,166,255,0.15);color:var(--accent);padding:1px 8px;border-radius:10px;font-size:11px">用户</span>';
+    return `<tr>
+      <td>${u.id}</td>
+      <td>${u.username}${isMe ? ' <span style="color:var(--text-dim);font-size:11px">(我)</span>' : ''}</td>
+      <td>${u.display_name}</td>
+      <td>${roleBadge}</td>
+      <td style="color:var(--text-dim);font-size:12px">${u.created_at ? u.created_at.slice(0,10) : '-'}</td>
+      <td>${!isMe && u.role !== 'admin' ? `<button class="btn btn-danger" onclick="deleteUser(${u.id},'${u.display_name}')" style="padding:3px 10px;font-size:11px">删除</button>` : ''}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function deleteUser(id, name) {
+  if (!confirm(`确定要删除用户"${name}"吗？此操作不可撤销。`)) return;
+  try {
+    await apiFetch('/api/users/' + id, { method: 'DELETE' });
+    showToast('已删除用户: ' + name);
+    loadUsers();
+  } catch(e) {
+    showToast('⚠ ' + e.message, 'error');
+  }
+}
+
+document.getElementById('userSearch').addEventListener('input', renderUserTable);
 
 // Init
 initApp();

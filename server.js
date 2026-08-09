@@ -169,6 +169,23 @@ app.get('/api/users', authMiddleware, (req, res) => {
   res.json(users);
 });
 
+// DELETE user (admin only)
+app.delete('/api/users/:id', authMiddleware, (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: '仅管理员可删除用户' });
+  }
+  const id = parseInt(req.params.id);
+  if (id === req.user.id) {
+    return res.status(400).json({ error: '不能删除自己' });
+  }
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+  if (!user) {
+    return res.status(404).json({ error: '用户不存在' });
+  }
+  db.prepare('DELETE FROM users WHERE id = ?').run(id);
+  res.json({ success: true, message: `已删除用户 ${user.display_name}` });
+});
+
 // GET all samples (all users can see all samples)
 app.get('/api/samples', authMiddleware, (req, res) => {
   const rows = db.prepare('SELECT * FROM samples ORDER BY id').all();
