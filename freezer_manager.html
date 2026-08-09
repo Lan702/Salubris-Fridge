@@ -526,7 +526,10 @@ let currentUser = null;
 function getAuth() {
   try { return JSON.parse(localStorage.getItem(AUTH_KEY)); } catch(e) { return null; }
 }
-function saveAuth(auth) { localStorage.setItem(AUTH_KEY, JSON.stringify(auth)); }
+function saveAuth(auth) {
+  auth.loginAt = Date.now();
+  localStorage.setItem(AUTH_KEY, JSON.stringify(auth));
+}
 function clearAuth() { localStorage.removeItem(AUTH_KEY); }
 function getToken() { const a = getAuth(); return a ? a.token : null; }
 
@@ -649,6 +652,7 @@ function doLogout() {
   clearAuth();
   currentUser = null;
   samples = [];
+  if (sessionCheckInterval) { clearInterval(sessionCheckInterval); sessionCheckInterval = null; }
   showAuthPage();
 }
 
@@ -666,11 +670,46 @@ function showApp() {
   if (fs) fs.value = '';
   // Load data
   loadSamples();
+  // Session timeout: check every 5 minutes + reset on user activity
+  startSessionCheck();
 }
+
+const SESSION_TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2 hours
+
+function isSessionExpired(auth) {
+  if (!auth || !auth.loginAt) return true;
+  return (Date.now() - auth.loginAt) > SESSION_TIMEOUT_MS;
+}
+
+let sessionCheckInterval = null;
+function startSessionCheck() {
+  if (sessionCheckInterval) clearInterval(sessionCheckInterval);
+  sessionCheckInterval = setInterval(() => {
+    const auth = getAuth();
+    if (isSessionExpired(auth)) {
+      clearInterval(sessionCheckInterval);
+      sessionCheckInterval = null;
+      doLogout();
+      toast('登录会话已过期，请重新登录');
+    }
+  }, 5 * 60 * 1000); // check every 5 minutes
+}
+function resetSession() {
+  const auth = getAuth();
+  if (auth) {
+    auth.loginAt = Date.now();
+    saveAuth(auth);
+  }
+}
+// Reset timer on user activity
+['click', 'keydown', 'touchstart'].forEach(e => {
+  document.addEventListener(e, resetSession, { passive: true });
+});
 
 async function initApp() {
   const auth = getAuth();
-  if (!auth || !auth.token) {
+  if (!auth || !auth.token || isSessionExpired(auth)) {
+    clearAuth();
     showAuthPage();
     return;
   }
