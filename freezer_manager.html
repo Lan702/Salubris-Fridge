@@ -254,27 +254,46 @@ tbody td.remark-cell:hover { color: var(--text); }
   .stat-card { padding: 12px 16px; }
   .stat-card .value { font-size: 20px; }
 
-  /* Freezer adaptations */
-  .freezer-unit { border-radius: 8px; margin-bottom: 14px; }
-  .freezer-header { padding: 10px 14px; }
-  .freezer-header .name { font-size: 15px; }
-  .freezer-body { padding: 10px 6px; }
-  .layer-title { font-size: 12px; padding: 6px 10px; }
-  .layer-title .lt-stats { font-size: 10px; }
-  .drawer-slot { width: 22px; height: 20px; font-size: 7px; border-radius: 2px; }
-  .drawer-slots { gap: 2px; }
-  .drawer-cell { padding: 3px 2px; border-radius: 4px; }
-  .shelf-table { border-spacing: 0 4px; }
-  .shelf-col-header { font-size: 9px; padding: 0 1px; }
-  .shelf-row-header { font-size: 9px; padding: 0 4px 0 1px; }
-  .l1-slot { width: 44px; height: 32px; font-size: 8px; }
-  .l1-grid { gap: 5px; }
+  /* Hide non-essential table columns on mobile */
+  .hide-mobile { display: none !important; }
 
-  /* Table adaptations */
+  /* Sample table mobile compact */
+  thead th { padding: 6px 6px; font-size: 10px; }
+  tbody td { padding: 6px 6px; font-size: 11px; }
+  tbody td .project-tag { padding: 1px 6px; font-size: 10px; }
+  tbody td .status-select { padding: 2px 6px; font-size: 10px; }
+  tbody td .btn { padding: 3px 8px !important; font-size: 10px !important; }
   .table-wrap .scroll-area { max-height: 55vh; }
-  thead th { padding: 8px 8px; font-size: 10px; }
-  tbody td { padding: 8px 8px; font-size: 11px; }
-  tbody td.remark-cell { max-width: 80px; }
+
+  /* Freezer: compact slots, color-only on mobile */
+  .freezer-unit { border-radius: 8px; margin-bottom: 14px; }
+  .freezer-header { padding: 8px 12px; }
+  .freezer-header .name { font-size: 13px; }
+  .freezer-header .stats { font-size: 10px; }
+  .freezer-body { padding: 8px 4px; }
+  .layer-title { font-size: 11px; padding: 6px 8px; }
+  .layer-title .lt-stats { font-size: 9px; }
+  .shelf-table { border-spacing: 0 3px; }
+  .shelf-col-header { font-size: 8px; padding: 0 1px; }
+  .shelf-row-header { font-size: 8px; padding: 0 3px 0 1px; }
+
+  /* Drawer slots: smaller + hide text, color block only */
+  .drawer-slot {
+    width: 16px; height: 14px;
+    font-size: 0 !important;
+    color: transparent !important;
+    border-radius: 2px;
+    line-height: 1;
+    text-indent: -9999px;
+    overflow: hidden;
+  }
+  .drawer-slots { gap: 1px; }
+  .drawer-cell { padding: 2px 1px; border-radius: 4px; }
+
+  /* L1 slots: smaller + color block only */
+  .l1-slot { width: 32px; height: 24px; font-size: 0; border-radius: 3px; gap: 0; }
+  .l1-slot .l1s-label, .l1-slot .l1s-num { display: none; }
+  .l1-grid { gap: 4px; }
 
   /* Modal */
   .modal { width: 95vw; padding: 16px; }
@@ -292,16 +311,18 @@ tbody td.remark-cell:hover { color: var(--text); }
   .header h1 .icon { width: 22px; height: 22px; font-size: 12px; }
   .header-stats { display: none; }
   .tabs { top: 45px; width: 200px; }
-  .drawer-slot { width: 18px; height: 16px; font-size: 6px; }
+  .drawer-slot { width: 14px; height: 12px; }
   .drawer-slots { gap: 1px; }
-  .l1-slot { width: 36px; height: 28px; font-size: 7px; }
-  .l1-grid { gap: 4px; }
-  .shelf-col-header { font-size: 8px; }
-  .shelf-row-header { font-size: 8px; }
+  .l1-slot { width: 26px; height: 20px; }
+  .l1-grid { gap: 3px; }
+  .shelf-col-header { font-size: 7px; }
+  .shelf-row-header { font-size: 7px; }
   .freezer-search { min-width: 0; }
   .freezer-search input { padding: 8px 10px 8px 32px; font-size: 12px; }
   .form-group input, .form-group select, .form-group textarea { padding: 8px 10px; font-size: 13px; }
   .btn { padding: 8px 16px; font-size: 12px; }
+  thead th { font-size: 9px; }
+  tbody td { font-size: 10px; }
 }
 </style>
 </head>
@@ -437,7 +458,7 @@ tbody td.remark-cell:hover { color: var(--text); }
       <div class="scroll-area">
         <table>
           <thead><tr>
-            <th>入库日期</th><th>项目编号</th><th>状态</th><th>数量</th><th>备注</th><th>人员</th><th>位置坐标</th><th>定位</th><th>录入者</th><th>操作</th>
+            <th>入库日期</th><th>项目编号</th><th>状态</th><th class="hide-mobile">数量</th><th class="hide-mobile">备注</th><th>人员</th><th class="hide-mobile">位置坐标</th><th>定位</th><th class="hide-mobile">录入者</th><th>操作</th>
           </tr></thead>
           <tbody id="sampleTbody"></tbody>
         </table>
@@ -996,12 +1017,12 @@ function renderTable(){
         <option value="keep" ${st==='keep'?'selected':''}>保留</option>
         <option value="clean" ${st==='clean'?'selected':''}>可清理</option>
       </select></td>
-      <td>${s.positions.length}</td>
-      <td class="remark-cell" title="${remarkText}">${remarkText||'<span style="color:#484f58">—</span>'}</td>
+      <td class="hide-mobile">${s.positions.length}</td>
+      <td class="remark-cell hide-mobile" title="${remarkText}">${remarkText||'<span style="color:#484f58">—</span>'}</td>
       <td>${s.person||'<span style="color:var(--text-dim)">未填写</span>'}</td>
-      <td class="coord-cell">${coords}</td>
+      <td class="coord-cell hide-mobile">${coords}</td>
       <td><button class="btn btn-secondary" style="padding:4px 12px;font-size:12px;border-color:var(--yellow);color:var(--yellow)" onclick="locateSample('${s.project}')" title="在冰箱示意图中定位">📍 定位</button></td>
-      <td class="creator-cell">${creator||'—'}</td>
+      <td class="creator-cell hide-mobile">${creator||'—'}</td>
       <td><button class="btn btn-danger" style="padding:4px 12px;font-size:12px" onclick="deleteSample(${s.id})">删除</button></td>
     </tr>`;
   }).join('');
