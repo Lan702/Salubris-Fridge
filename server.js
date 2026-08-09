@@ -21,10 +21,12 @@ const JWT_EXPIRES = process.env.JWT_EXPIRES || '30d';
 const PORT = process.env.PORT || 8089;
 
 // ── SQLite ──────────────────────────────────────────────
-const DATA_DIR = process.env.DATA_DIR || __dirname;
+// 优先使用 Railway 自动注入的 Volume 路径，否则用 DATA_DIR 或本地目录
+const DATA_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH || process.env.DATA_DIR || __dirname;
 const dbPath = path.join(DATA_DIR, 'freezer.db');
+console.log('📁 数据库路径:', dbPath);
 
-// Auto-migrate: if old DB exists locally but not in persistent volume, copy it
+// Auto-migrate: 若旧位置有 DB 但持久化路径没有，则迁移
 const oldDbPath = path.join(__dirname, 'freezer.db');
 if (DATA_DIR !== __dirname && fs.existsSync(oldDbPath) && !fs.existsSync(dbPath)) {
   console.log('🔄 搬迁已有数据到持久化存储卷...');
