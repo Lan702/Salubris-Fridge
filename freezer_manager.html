@@ -304,6 +304,56 @@ tbody td.remark-cell:hover { color: var(--text); }
 
   /* Auth card */
   .auth-card { padding: 24px; }
+
+  /* ── Landscape mode for freezer tab ── */
+  body.force-landscape { overflow: hidden; }
+  body.force-landscape .header,
+  body.force-landscape .tabs,
+  body.force-landscape .sidebar-backdrop { display: none !important; }
+  body.force-landscape .app-container {
+    position: fixed; top: 0; left: 0;
+    width: 100vh; height: 100vw;
+    transform: rotate(90deg) translateX(100vh);
+    transform-origin: top left;
+    overflow-y: auto;
+    z-index: 300;
+  }
+  body.force-landscape .app-container .main-layout {
+    flex-direction: column;
+  }
+  body.force-landscape .content {
+    padding: 10px 6px;
+    max-width: none;
+  }
+  /* Landscape exit button */
+  .landscape-exit {
+    display: none;
+    position: fixed; bottom: 12px; right: 12px; z-index: 400;
+    background: rgba(0,0,0,0.75); color: #fff;
+    border: 1px solid rgba(255,255,255,0.2); border-radius: 20px;
+    padding: 8px 16px; font-size: 13px; cursor: pointer;
+    backdrop-filter: blur(8px);
+  }
+  body.force-landscape .landscape-exit { display: block; }
+  /* Landscape: freezer adjustments */
+  body.force-landscape .freezer-toolbar { flex-direction: row; flex-wrap: wrap; gap: 8px; }
+  body.force-landscape .freezer-search { flex: 1; min-width: 180px; }
+  body.force-landscape .legend { flex-wrap: wrap; gap: 8px; }
+  body.force-landscape .legend-item { font-size: 10px; }
+  body.force-landscape .drawer-slot {
+    width: 18px; height: 16px;
+    font-size: 0 !important;
+    text-indent: -9999px;
+    border-radius: 2px;
+  }
+  body.force-landscape .drawer-slots { gap: 1px; }
+  body.force-landscape .l1-slot { width: 36px; height: 28px; font-size: 0; }
+  body.force-landscape .l1-slot .l1s-label,
+  body.force-landscape .l1-slot .l1s-num { display: none; }
+  body.force-landscape .l1-grid { gap: 4px; }
+  body.force-landscape .shelf-col-header { font-size: 9px; }
+  body.force-landscape .shelf-row-header { font-size: 9px; }
+  body.force-landscape .layer-title { font-size: 11px; padding: 5px 8px; }
 }
 
 @media (max-width: 480px) {
@@ -503,6 +553,8 @@ tbody td.remark-cell:hover { color: var(--text); }
     </div>
   </div>
 </div>
+
+<button class="landscape-exit" onclick="exitLandscape()" title="退出横屏">↩ 退出横屏</button>
 
 </div>
 
@@ -833,11 +885,32 @@ document.querySelectorAll('.tab').forEach(t=>{
     t.classList.add('active');
     document.getElementById('tab-'+t.dataset.tab).classList.add('active');
     if(t.dataset.tab==='list') renderTable();
-    if(t.dataset.tab==='freezer') renderFreezers();
+    if(t.dataset.tab==='freezer') { renderFreezers(); }
     if(t.dataset.tab==='users') loadUsers();
     // Auto-close sidebar on mobile after tab selection
     closeSidebar();
+    // Force landscape on mobile for freezer tab
+    updateLandscape(t.dataset.tab);
   });
+});
+
+// ── Landscape mode for freezer on mobile ──
+function updateLandscape(tabId) {
+  const isMobile = window.innerWidth <= 768;
+  if (isMobile && tabId === 'freezer') {
+    document.body.classList.add('force-landscape');
+  } else {
+    document.body.classList.remove('force-landscape');
+  }
+}
+function exitLandscape() {
+  document.body.classList.remove('force-landscape');
+}
+// Listen for window resize to exit landscape when rotating device
+window.addEventListener('resize', () => {
+  if (window.innerWidth > 768) {
+    document.body.classList.remove('force-landscape');
+  }
 });
 
 // ===================== ENTRY FORM =====================
