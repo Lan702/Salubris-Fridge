@@ -118,12 +118,15 @@ app.use(express.json());
 
 // Register
 app.post('/api/auth/register', (req, res) => {
-  const { username, password, display_name } = req.body;
+  const { username, password, display_name, verify_q } = req.body;
   if (!username || !password || !display_name) {
     return res.status(400).json({ error: '用户名、密码和显示名称不能为空' });
   }
   if (username.length < 3 || password.length < 6) {
     return res.status(400).json({ error: '用户名至少3位，密码至少6位' });
+  }
+  if (verify_q !== 'SX') {
+    return res.status(400).json({ error: '验证问答错误' });
   }
 
   const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(username);

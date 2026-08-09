@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<title>海尔生物超低温冰箱样品可视化管理</title>
+<title>某药代组的超~低温冰箱</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 :root {
@@ -25,6 +25,7 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, "M
 .auth-group label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 6px; font-weight: 500; }
 .auth-group input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; color: var(--text); font-size: 14px; outline: none; }
 .auth-group input:focus { border-color: var(--accent); }
+.verify-q { font-size: 12px; color: var(--text-dim); background: var(--panel2); padding: 8px 10px; border-radius: 6px; margin-bottom: 6px; word-break: break-all; }
 .auth-actions { margin-top: 24px; display: flex; flex-direction: column; gap: 12px; }
 .auth-btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
 .auth-btn.primary { background: #238636; color: white; }
@@ -344,7 +345,7 @@ tbody td.remark-cell:hover { color: var(--text); }
 <div class="app-container" id="appContainer">
   <div class="header">
     <button class="hamburger" id="hamburgerBtn" onclick="toggleSidebar()" title="菜单">☰</button>
-    <h1><span class="icon">🧊</span>海尔生物超低温冰箱样品管理系统</h1>
+    <h1><span class="icon">🧊</span>某药代组的超~低温冰箱管理系统</h1>
     <div class="header-right">
       <div class="header-stats">
         <span id="wsStatus" style="color:var(--text-dim)">⏳ 连接中...</span>
@@ -580,6 +581,11 @@ function renderRegisterForm() {
     <div class="auth-group"><label>显示名称</label><input type="text" id="regName" placeholder="你的姓名（同事可见）"></div>
     <div class="auth-group"><label>密码</label><input type="password" id="regPass" placeholder="至少6位"></div>
     <div class="auth-group"><label>确认密码</label><input type="password" id="regPass2" placeholder="再次输入密码"></div>
+    <div class="auth-group">
+      <label>验证问答</label>
+      <div class="verify-q">Q: 俺们公司的英文首字母（大写）+中文拼音首字母（大写）=？</div>
+      <input type="text" id="regVerify" placeholder="请输入答案（2个大写字母）" maxlength="2" style="text-transform:uppercase" autocomplete="off">
+    </div>
     <div class="auth-actions">
       <button class="auth-btn primary" onclick="doRegister()">注册</button>
       <button class="auth-btn secondary" onclick="renderLoginForm()">← 返回登录</button>
@@ -616,15 +622,17 @@ async function doRegister() {
   const n = document.getElementById('regName').value.trim();
   const p = document.getElementById('regPass').value;
   const p2 = document.getElementById('regPass2').value;
+  const v = document.getElementById('regVerify').value.trim().toUpperCase();
   const errEl = document.getElementById('authError');
   errEl.classList.remove('show');
   if (!u || !n || !p) { errEl.textContent = '所有字段都必须填写'; errEl.classList.add('show'); return; }
   if (p !== p2) { errEl.textContent = '两次密码不一致'; errEl.classList.add('show'); return; }
   if (u.length < 3 || p.length < 6) { errEl.textContent = '用户名至少3位，密码至少6位'; errEl.classList.add('show'); return; }
+  if (v !== 'SX') { errEl.textContent = '验证问答错误，请重新输入'; errEl.classList.add('show'); return; }
   try {
     const resp = await fetch('/api/auth/register', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: u, password: p, display_name: n })
+      body: JSON.stringify({ username: u, password: p, display_name: n, verify_q: v })
     });
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error);
@@ -1178,7 +1186,7 @@ function renderFreezers(){
   grid.innerHTML=`
     <div class="freezer-unit">
       <div class="freezer-header">
-        <span class="name">🧊 海尔生物超低温冰箱 — 4大层 (L1无架子 + L2~L4架子)</span>
+        <span class="name">🧊 某药代组的超~低温冰箱 — 4大层 (L1无架子 + L2~L4架子)</span>
         <span class="stats">架子使用 <b>${shelfUsed}</b>/${TOTAL_SHELF_POS} | 空闲 <b>${TOTAL_SHELF_POS - shelfUsed}</b> | L1 <b>${l1Used}</b></span>
       </div>
       <div class="freezer-body">
