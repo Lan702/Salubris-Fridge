@@ -265,35 +265,37 @@ tbody td.remark-cell:hover { color: var(--text); }
   tbody td .btn { padding: 3px 8px !important; font-size: 10px !important; }
   .table-wrap .scroll-area { max-height: 55vh; }
 
-  /* Freezer: compact slots, color-only on mobile */
+  /* Freezer: compact layout on mobile */
   .freezer-unit { border-radius: 8px; margin-bottom: 14px; }
-  .freezer-header { padding: 8px 12px; }
-  .freezer-header .name { font-size: 13px; }
-  .freezer-header .stats { font-size: 10px; }
-  .freezer-body { padding: 8px 4px; }
-  .layer-title { font-size: 11px; padding: 6px 8px; }
-  .layer-title .lt-stats { font-size: 9px; }
-  .shelf-table { border-spacing: 0 3px; }
-  .shelf-col-header { font-size: 8px; padding: 0 1px; }
-  .shelf-row-header { font-size: 8px; padding: 0 3px 0 1px; }
+  .freezer-header { padding: 6px 10px; }
+  .freezer-header .name { font-size: 12px; }
+  .freezer-header .stats { font-size: 9px; }
+  .freezer-body { padding: 4px 2px; }
+  .layer-title { font-size: 10px; padding: 4px 6px; border-left-width: 2px; }
+  .layer-title .lt-stats { font-size: 8px; }
+  .shelf-table { border-spacing: 0 1px; }
+  .shelf-col-header { font-size: 6px; padding: 0; letter-spacing: -0.3px; }
+  .shelf-row-header { font-size: 6px; padding: 0 1px 0 0; min-width: 0; }
 
-  /* Drawer slots: smaller + hide text, color block only */
+  /* Drawer slots: ultra-compact, color block only */
   .drawer-slot {
-    width: 16px; height: 14px;
+    width: 9px; height: 7px;
     font-size: 0 !important;
     color: transparent !important;
-    border-radius: 2px;
+    border-radius: 1px;
     line-height: 1;
     text-indent: -9999px;
     overflow: hidden;
+    border-width: 0.5px;
   }
   .drawer-slots { gap: 1px; }
-  .drawer-cell { padding: 2px 1px; border-radius: 4px; }
+  .drawer-cell { padding: 1px; border-radius: 2px; border-width: 0.5px; }
+  .drawer-cell-wrap { padding: 0 1px !important; }
 
   /* L1 slots: smaller + color block only */
-  .l1-slot { width: 32px; height: 24px; font-size: 0; border-radius: 3px; gap: 0; }
+  .l1-slot { width: 20px; height: 14px; font-size: 0; border-radius: 2px; gap: 0; }
   .l1-slot .l1s-label, .l1-slot .l1s-num { display: none; }
-  .l1-grid { gap: 4px; }
+  .l1-grid { gap: 3px; }
 
   /* Modal */
   .modal { width: 95vw; padding: 16px; }
@@ -311,12 +313,17 @@ tbody td.remark-cell:hover { color: var(--text); }
   .header h1 .icon { width: 22px; height: 22px; font-size: 12px; }
   .header-stats { display: none; }
   .tabs { top: 45px; width: 200px; }
-  .drawer-slot { width: 14px; height: 12px; }
-  .drawer-slots { gap: 1px; }
-  .l1-slot { width: 26px; height: 20px; }
-  .l1-grid { gap: 3px; }
-  .shelf-col-header { font-size: 7px; }
-  .shelf-row-header { font-size: 7px; }
+  .drawer-slot { width: 8px; height: 6px; border-radius: 1px; }
+  .drawer-slots { gap: 0.5px; }
+  .drawer-cell-wrap { padding: 0 0.5px !important; }
+  .l1-slot { width: 16px; height: 12px; }
+  .l1-grid { gap: 2px; }
+  .shelf-col-header { font-size: 5px; }
+  .shelf-row-header { font-size: 5px; }
+  .freezer-header { padding: 4px 8px; }
+  .freezer-header .name { font-size: 11px; }
+  .freezer-body { padding: 2px 1px; }
+  .layer-title { font-size: 9px; padding: 3px 5px; }
   .freezer-search { min-width: 0; }
   .freezer-search input { padding: 8px 10px 8px 32px; font-size: 12px; }
   .form-group input, .form-group select, .form-group textarea { padding: 8px 10px; font-size: 13px; }
