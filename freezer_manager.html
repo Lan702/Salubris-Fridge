@@ -38,9 +38,11 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, "M
 
 /* ── Main App ── */
 .app-container { display: none; }
-.app-container.show { display: block; }
+.app-container.show { display: flex; flex-direction: column; height: 100vh; }
 
-.header { background: linear-gradient(135deg, #0d1117 0%, #161b22 100%); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+.main-layout { display: flex; flex: 1; overflow: hidden; }
+
+.header { background: linear-gradient(135deg, #0d1117 0%, #161b22 100%); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; z-index: 100; }
 .header h1 { font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
 .header h1 .icon { width: 32px; height: 32px; background: linear-gradient(135deg, #58a6ff, #bc8cff); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
 .header-right { display: flex; align-items: center; gap: 16px; }
@@ -52,15 +54,20 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, "M
 .btn-logout { background: transparent; color: var(--red); border: 1px solid rgba(248,81,73,0.3); border-radius: 6px; padding: 5px 14px; font-size: 12px; cursor: pointer; }
 .btn-logout:hover { background: rgba(248,81,73,0.1); }
 
-.tabs { display: flex; background: var(--panel); border-bottom: 1px solid var(--border); padding: 0 24px; gap: 4px; }
-.tab { padding: 12px 24px; cursor: pointer; color: var(--text-dim); border-bottom: 2px solid transparent; transition: all 0.2s; font-size: 14px; font-weight: 500; }
-.tab:hover { color: var(--text); }
-.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-.tab .badge { background: var(--panel2); padding: 1px 7px; border-radius: 10px; font-size: 11px; margin-left: 6px; }
+.tabs { display: flex; flex-direction: column; width: 200px; background: var(--panel); border-right: 1px solid var(--border); padding: 12px 0; flex-shrink: 0; gap: 2px; }
+.tab { padding: 14px 20px; cursor: pointer; color: var(--text-dim); border-left: 3px solid transparent; border-radius: 0 8px 8px 0; transition: all 0.25s ease; font-size: 14px; font-weight: 500; display: flex; align-items: center; justify-content: space-between; }
+.tab:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+.tab.active { color: var(--accent); border-left-color: var(--accent); background: rgba(88,166,255,0.08); }
+.tab .badge { background: var(--panel2); padding: 1px 7px; border-radius: 10px; font-size: 11px; }
 
-.content { padding: 24px; max-width: 1500px; margin: 0 auto; }
-.tab-content { display: none; }
-.tab-content.active { display: block; }
+.content { flex: 1; padding: 24px; overflow-y: auto; }
+.tab-content { display: none; opacity: 0; transform: translateY(6px); }
+.tab-content.active { display: block; animation: tabFadeIn 0.35s ease forwards; }
+
+@keyframes tabFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
 /* Form */
 .form-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 28px; max-width: 650px; }
@@ -239,6 +246,7 @@ tbody td.remark-cell:hover { color: var(--text); }
     </div>
   </div>
 
+  <div class="main-layout">
   <div class="tabs">
     <div class="tab active" data-tab="entry">📋 录入界面</div>
     <div class="tab" data-tab="list">📊 样品清单 <span class="badge" id="listBadge">0</span></div>
@@ -385,8 +393,8 @@ tbody td.remark-cell:hover { color: var(--text); }
       </div>
     </div>
   </div>
+</div>
 
-  </div>
 </div>
 
 <div class="tooltip" id="tooltip"></div>
