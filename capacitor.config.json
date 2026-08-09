@@ -1,0 +1,9 @@
+{
+  "appId": "com.freezer.manager",
+  "appName": "冰箱样品管理",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "android": {
+    "allowMixedContent": true
+  }
+}

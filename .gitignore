@@ -1,0 +1,10 @@
+node_modules/
+*.db
+*.db-wal
+*.db-shm
+freezer.db
+android/
+www/
+deploy/
+.workbuddy/
+.env
