@@ -176,6 +176,12 @@ tbody td.remark-cell:hover { color: var(--text); }
 .shelf-row-header { display: table-cell; text-align: center; vertical-align: middle; font-size: 11px; color: var(--text-dim); font-weight: 600; padding: 0 8px 0 2px; white-space: nowrap; width: 1%; }
 .drawer-slot:hover { transform: scale(1.2); z-index: 2; }
 
+/* Drag & drop visual feedback (desktop only) */
+.slot-dragging { opacity: 0.3; transform: scale(0.9); }
+.slot-drop-target { box-shadow: 0 0 8px 3px rgba(88,166,255,0.8); outline: 2px dashed var(--accent); outline-offset: 1px; z-index: 10; transform: scale(1.15); transition: all 0.12s ease; }
+.slot-drop-invalid { outline: 2px solid rgba(248,81,73,0.6); outline-offset: 1px; }
+.l1-dragging { opacity: 0.3; transform: scale(0.85); }
+
 .slot-empty { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.08); color: rgba(255,255,255,0.2); }
 .slot-locate { background: rgba(210,153,34,0.3); border-color: rgba(210,153,34,0.5); color: var(--yellow); box-shadow: 0 0 6px rgba(210,153,34,0.25); }
 .slot-keep { background: rgba(63,185,80,0.25); border-color: rgba(63,185,80,0.4); color: var(--green); }
@@ -1259,17 +1265,31 @@ function renderFreezers(){
     </div>
   `;
 
-  document.querySelectorAll('.drawer-slot').forEach(slot=>{
+  const allSlots = document.querySelectorAll('.drawer-slot, .l1-slot');
+  const isDesktop = window.innerWidth > 768;
+
+  allSlots.forEach(slot=>{
     slot.addEventListener('mouseenter',showTooltip); slot.addEventListener('mouseleave',hideTooltip);
-    slot.addEventListener('click',onSlotClick); slot.addEventListener('click',e=>e.stopPropagation());
+    slot.addEventListener('click',onSlotClick);
+    slot.addEventListener('click',e=>e.stopPropagation());
+    if (isDesktop) {
+      const occ = slot.dataset.occupied === 'true';
+      if (occ) {
+        slot.draggable = true;
+        slot.addEventListener('dragstart',onDragStart);
+        slot.addEventListener('dragend',onDragEnd);
+      }
+      slot.addEventListener('dragover',onDragOver);
+      slot.addEventListener('dragenter',onDragEnter);
+      slot.addEventListener('dragleave',onDragLeave);
+      slot.addEventListener('drop',onDrop);
+    }
   });
-  document.querySelectorAll('.drawer-cell').forEach(dc=>{
-    dc.addEventListener('click',onDrawerClick);
-  });
-  document.querySelectorAll('.l1-slot').forEach(slot=>{
-    slot.addEventListener('mouseenter',showTooltip); slot.addEventListener('mouseleave',hideTooltip);
-    slot.addEventListener('click',onSlotClick); slot.addEventListener('click',e=>e.stopPropagation());
-  });
+  if (!isDesktop) {
+    document.querySelectorAll('.drawer-cell').forEach(dc=>{
+      dc.addEventListener('click',onDrawerClick);
+    });
+  }
 }
 
 function getSlotClass(status,sample,searchTerm){
@@ -1347,6 +1367,111 @@ function showSlotDetailModal(coord){
 }
 
 window.closeModal=function(){document.getElementById('modalOverlay').classList.remove('show');};
+
+// ── Drag & Drop (desktop only) ──
+let dragSourceCoord = null;
+
+function onDragStart(e) {
+  const slot = e.currentTarget;
+  dragSourceCoord = slot.dataset.coord;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', dragSourceCoord);
+  slot.classList.add(slot.classList.contains('l1-slot') ? 'l1-dragging' : 'slot-dragging');
+  // Small delay so the drag image doesn't look weird
+  setTimeout(() => { if (slot.classList.contains('slot-dragging') || slot.classList.contains('l1-dragging')) {} }, 0);
+}
+
+function onDragEnd(e) {
+  const slot = e.currentTarget;
+  slot.classList.remove('slot-dragging', 'l1-dragging');
+  // Clean up all drop targets
+  document.querySelectorAll('.slot-drop-target, .slot-drop-invalid').forEach(el => {
+    el.classList.remove('slot-drop-target', 'slot-drop-invalid');
+  });
+  dragSourceCoord = null;
+}
+
+function onDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+}
+
+function onDragEnter(e) {
+  e.preventDefault();
+  const slot = e.currentTarget;
+  const coord = slot.dataset.coord;
+  if (!dragSourceCoord || coord === dragSourceCoord) return;
+  // Valid target = empty slot OR occupied by same sample (for multi-position L1)
+  const occ = slot.dataset.occupied === 'true';
+  if (occ) {
+    slot.classList.add('slot-drop-invalid');
+  } else {
+    slot.classList.add('slot-drop-target');
+  }
+}
+
+function onDragLeave(e) {
+  const slot = e.currentTarget;
+  slot.classList.remove('slot-drop-target', 'slot-drop-invalid');
+}
+
+async function onDrop(e) {
+  e.preventDefault();
+  const targetSlot = e.currentTarget;
+  const targetCoord = targetSlot.dataset.coord;
+  targetSlot.classList.remove('slot-drop-target', 'slot-drop-invalid');
+
+  if (!dragSourceCoord || dragSourceCoord === targetCoord) return;
+  if (targetSlot.dataset.occupied === 'true') {
+    showToast('⚠ 目标位置已被占用', 'error');
+    return;
+  }
+
+  const om = getOccupiedMap();
+  const srcSmp = om[dragSourceCoord];
+  if (!srcSmp) { showToast('⚠ 找不到源样品', 'error'); return; }
+
+  const srcParsed = parseCoord(dragSourceCoord);
+  const tgtParsed = parseCoord(targetCoord);
+  if (!srcParsed || !tgtParsed) { showToast('⚠ 坐标解析失败', 'error'); return; }
+
+  // Build the update body
+  const body = {};
+  if (tgtParsed.layer !== srcParsed.layer) body.layer = tgtParsed.layer;
+  if (tgtParsed.col !== srcParsed.col) body.col = tgtParsed.col;
+  if (tgtParsed.row !== srcParsed.row) body.row = tgtParsed.row;
+
+  // Positions: remove old slot, add new slot
+  let newPositions = [...(srcSmp.positions || [srcParsed.slot])];
+  newPositions = newPositions.filter(p => p !== srcParsed.slot);
+  newPositions.push(tgtParsed.slot);
+  newPositions.sort((a, b) => a - b);
+  body.positions = newPositions;
+
+  try {
+    const result = await apiFetch(`/api/samples/${srcSmp.id}`, {
+      method: 'PUT',
+      body: JSON.stringify(body)
+    });
+    if (!result.success) throw new Error(result.message || '更新失败');
+
+    // Update local state
+    const smp = samples.find(s => s.id === srcSmp.id);
+    if (smp) {
+      smp.layer = tgtParsed.layer;
+      smp.col = tgtParsed.col;
+      smp.row = tgtParsed.row;
+      smp.positions = newPositions;
+    }
+    updateHeaderStats();
+    renderFreezers();
+    if (document.getElementById('tab-list').classList.contains('active')) renderTable();
+    showToast(`✅ 已将 ${srcSmp.project} 从 ${dragSourceCoord} 移至 ${targetCoord}`);
+  } catch (err) {
+    showToast('⚠ 移动失败: ' + err.message, 'error');
+  }
+  dragSourceCoord = null;
+}
 
 window.removeSampleFromSlot=async function(sid,coord){
   const smp=samples.find(s=>s.id===sid);if(!smp)return;
