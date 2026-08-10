@@ -228,6 +228,11 @@ tbody td.remark-cell:hover { color: var(--text); }
 ::-webkit-scrollbar-thumb:hover { background: #484f58; }
 
 @media (max-width: 768px) {
+  /* Login page: switch to mobile-specific background (更贴合手机的红色风格图) */
+  .auth-overlay {
+    background: linear-gradient(rgba(13,17,23,0.55), rgba(13,17,23,0.4)), url('login-bg-mobile.jpg') center center / cover no-repeat;
+  }
+
   /* Header */
   .hamburger { display: block; }
   .header { padding: 10px 14px; gap: 6px; }
