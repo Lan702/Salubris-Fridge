@@ -16,15 +16,8 @@
 }
 body { background: var(--bg); color: var(--text); font-family: -apple-system, "Microsoft YaHei", "Segoe UI", sans-serif; font-size: 14px; min-height: 100vh; }
 
-/* ── Desktop background (only on non-mobile) ── */
-@media (min-width: 769px) {
-  body {
-    background: linear-gradient(rgba(13,17,23,0.85), rgba(13,17,23,0.75)), url('app-bg.jpg') center center / cover no-repeat fixed;
-  }
-}
-
 /* ── Auth Page ── */
-.auth-overlay { position: fixed; inset: 0; background: url('login-bg-desktop.jpg') center center / cover no-repeat; display: flex; align-items: center; justify-content: center; z-index: 500; }
+.auth-overlay { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 500; }
 .auth-card { background: rgba(28, 35, 47, 0.55); border: 1px solid rgba(255,255,255,0.12); border-radius: 20px; padding: 40px; width: 420px; max-width: 90vw; box-shadow: 0 8px 32px rgba(0,0,0,0.3); backdrop-filter: blur(16px) saturate(180%); -webkit-backdrop-filter: blur(16px) saturate(180%); }
 .auth-card h2 { font-size: 24px; margin-bottom: 8px; text-align: center; color: #fff; }
 .auth-card .subtitle { text-align: center; color: rgba(255,255,255,0.65); font-size: 13px; margin-bottom: 28px; }
@@ -244,11 +237,6 @@ tbody td.remark-cell:hover { color: var(--text); }
 ::-webkit-scrollbar-thumb:hover { background: #484f58; }
 
 @media (max-width: 768px) {
-  /* Login page: switch to mobile-specific background (更贴合手机的红色风格图) */
-  .auth-overlay {
-    background: linear-gradient(rgba(13,17,23,0.55), rgba(13,17,23,0.4)), url('login-bg-mobile.jpg') center center / cover no-repeat;
-  }
-
   /* Header */
   .hamburger { display: block; }
   .header { padding: 10px 14px; gap: 6px; }
@@ -1273,8 +1261,12 @@ function renderFreezers(){
 
   allSlots.forEach(slot=>{
     slot.addEventListener('mouseenter',showTooltip); slot.addEventListener('mouseleave',hideTooltip);
+    slot.addEventListener('click',function(e) {
+      e.stopPropagation();
+      if (dragMoved) { dragMoved = false; return; }  // ignore click after real drag
+      onSlotClick(e);
+    });
     if (isDesktop) {
-      slot.addEventListener('click',e=>e.stopPropagation());
       const occ = slot.dataset.occupied === 'true';
       if (occ) {
         slot.draggable = true;
@@ -1285,9 +1277,6 @@ function renderFreezers(){
       slot.addEventListener('dragenter',onDragEnter);
       slot.addEventListener('dragleave',onDragLeave);
       slot.addEventListener('drop',onDrop);
-    } else {
-      slot.addEventListener('click',onSlotClick);
-      slot.addEventListener('click',e=>e.stopPropagation());
     }
   });
   if (!isDesktop) {
@@ -1375,8 +1364,10 @@ window.closeModal=function(){document.getElementById('modalOverlay').classList.r
 
 // ── Drag & Drop (desktop only) ──
 let dragSourceCoord = null;
+let dragMoved = false;
 
 function onDragStart(e) {
+  dragMoved = true;
   const slot = e.currentTarget;
   dragSourceCoord = slot.dataset.coord;
   e.dataTransfer.effectAllowed = 'move';
