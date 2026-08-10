@@ -823,6 +823,7 @@ function connectWS() {
 }
 
 function refreshUI() {
+  if (isDragging) { pendingRender = true; return; }
   updateHeaderStats();
   if (document.getElementById('tab-list').classList.contains('active')) renderTable();
   if (document.getElementById('tab-freezer').classList.contains('active')) renderFreezers();
@@ -1367,9 +1368,12 @@ window.closeModal=function(){document.getElementById('modalOverlay').classList.r
 // ── Drag & Drop (desktop only) ──
 let dragSourceCoord = null;
 let dragMoved = false;
+let isDragging = false;
+let pendingRender = false;
 
 function onDragStart(e) {
   dragMoved = true;
+  isDragging = true;
   const slot = e.currentTarget;
   dragSourceCoord = slot.dataset.coord;
   e.dataTransfer.effectAllowed = 'move';
@@ -1387,7 +1391,12 @@ function onDragEnd(e) {
   document.querySelectorAll('.slot-drop-target, .slot-drop-invalid').forEach(el => {
     el.classList.remove('slot-drop-target', 'slot-drop-invalid');
   });
+  isDragging = false;
   dragSourceCoord = null;
+  if (pendingRender) {
+    pendingRender = false;
+    refreshUI();
+  }
 }
 
 function onDragOver(e) {
@@ -1426,11 +1435,12 @@ async function onDrop(e) {
     return;
   }
 
+  const srcCoord = dragSourceCoord; // save before async operations
   const om = getOccupiedMap();
-  const srcSmp = om[dragSourceCoord];
+  const srcSmp = om[srcCoord];
   if (!srcSmp) { showToast('⚠ 找不到源样品', 'error'); return; }
 
-  const srcParsed = parseCoord(dragSourceCoord);
+  const srcParsed = parseCoord(srcCoord);
   const tgtParsed = parseCoord(targetCoord);
   if (!srcParsed || !tgtParsed) { showToast('⚠ 坐标解析失败', 'error'); return; }
 
@@ -1462,14 +1472,15 @@ async function onDrop(e) {
       smp.row = tgtParsed.row;
       smp.positions = newPositions;
     }
-    updateHeaderStats();
-    renderFreezers();
-    if (document.getElementById('tab-list').classList.contains('active')) renderTable();
-    showToast(`✅ 已将 ${srcSmp.project} 从 ${dragSourceCoord} 移至 ${targetCoord}`);
+    // Don't call renderFreezers() here — WebSocket broadcast will trigger refreshUI().
+    // Fallback: if WebSocket hasn't re-rendered within 300ms, do it manually.
+    setTimeout(() => {
+      if (!isDragging && !pendingRender) refreshUI();
+    }, 300);
+    showToast(`✅ 已将 ${srcSmp.project} 从 ${srcCoord} 移至 ${targetCoord}`);
   } catch (err) {
     showToast('⚠ 移动失败: ' + err.message, 'error');
   }
-  dragSourceCoord = null;
 }
 
 window.removeSampleFromSlot=async function(sid,coord){
