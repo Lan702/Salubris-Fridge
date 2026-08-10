@@ -560,7 +560,9 @@ function authHeaders() {
 }
 
 async function apiFetch(url, options = {}) {
-  options.headers = { ...(options.headers || {}), ...authHeaders() };
+  const headers = { ...authHeaders() };
+  if (options.body) headers['Content-Type'] = 'application/json';
+  options.headers = { ...headers, ...(options.headers || {}) };
   const resp = await fetch(url, options);
   if (resp.status === 401) {
     clearAuth();
@@ -1529,11 +1531,8 @@ window.doMoveSample=async function(sid,oldCoord){
 
   try {
     const body={ layer:newLayer, col:newCol, row:newRow, positions:newPositions };
-    await apiFetch(`/api/samples/${sid}`, { method:'PUT', body:JSON.stringify(body) });
-    // Remove old occupied slot from this sample's positions
-    if(smp.layer===oldParsed.layer && smp.col===oldParsed.col && smp.row===oldParsed.row){
-      // Remove old position from positions array (handled above for same-layer)
-    }
+    const result = await apiFetch(`/api/samples/${sid}`, { method:'PUT', body:JSON.stringify(body) });
+    if (!result.success) throw new Error(result.message || '更新失败');
     smp.layer=newLayer; smp.col=newCol; smp.row=newRow; smp.positions=newPositions;
     updateHeaderStats();renderFreezers();
     if(document.getElementById('tab-list').classList.contains('active')) renderTable();
