@@ -201,7 +201,17 @@ tbody td.remark-cell:hover { color: var(--text); }
 .modal .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(48,54,61,0.5); }
 .modal .info-row .label { color: var(--text-dim); flex-shrink: 0; margin-right: 16px; }
 .modal .info-row .value { font-weight: 500; text-align: right; word-break: break-all; }
-.modal-actions { margin-top: 20px; display: flex; gap: 12px; justify-content: flex-end; }
+.modal-actions { margin-top: 20px; display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap; }
+
+.move-picker { margin-top: 16px; padding: 16px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 10px; }
+.move-picker h4 { font-size: 13px; color: var(--text-dim); margin-bottom: 12px; }
+.move-selects { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
+.move-selects .ms-group { display: flex; flex-direction: column; gap: 4px; }
+.move-selects .ms-group label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; }
+.move-selects .ms-group select { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; color: var(--text); font-size: 13px; outline: none; min-width: 80px; }
+.move-selects .ms-group select:focus { border-color: var(--accent); }
+.move-picker .mp-note { margin-top: 10px; font-size: 11px; color: var(--yellow); }
+.move-picker .mp-note.success { color: var(--green); }
 
 .modal-drawer-grid { display: flex; gap: 6px; margin: 12px 0; flex-wrap: wrap; justify-content: center; }
 .modal-drawer-slot { width: 56px; height: 56px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; border: 2px solid transparent; cursor: pointer; transition: all 0.15s; gap: 2px; }
@@ -1327,6 +1337,7 @@ function showSlotDetailModal(coord){
     <div class="info-row"><span class="label">录入者</span><span class="value">${smp.creator_name||smp.created_by||'—'}</span></div>
     <div class="info-row"><span class="label">位置描述</span><span class="value">${posDesc}</span></div>
     <div class="modal-actions">
+      <button class="btn btn-secondary" style="border-color:var(--accent);color:var(--accent)" onclick="openMoveDialog(${smp.id},'${coord}')">📦 更改位置</button>
       <button class="btn btn-danger" onclick="removeSampleFromSlot(${smp.id},'${coord}')">取出样品</button>
       <button class="btn btn-secondary" onclick="closeModal()">关闭</button>
     </div>`;
@@ -1351,6 +1362,185 @@ window.removeSampleFromSlot=async function(sid,coord){
     if(document.getElementById('tab-list').classList.contains('active')) renderTable();
     closeModal();showToast(`已从 ${coord} 取出样品`);
   } catch(e) { showToast('⚠ 操作失败: '+e.message,'error'); }
+};
+
+// ── Move sample to new position ──
+window.openMoveDialog=function(sid,oldCoord){
+  const smp=samples.find(s=>s.id===sid); if(!smp) return;
+  const om=getOccupiedMap();
+  const modal=document.getElementById('modalContent');
+  const oldParsed=parseCoord(oldCoord);
+
+  // Build available positions grouped by layer
+  let html=`<h3>📦 更改样品位置</h3>
+    <div class="info-row"><span class="label">当前坐标</span><span class="value" style="color:var(--accent);font-family:Consolas">${oldCoord}</span></div>
+    <div class="info-row"><span class="label">项目编号</span><span class="value">${smp.project}</span></div>
+    <div class="move-picker">
+      <h4>选择新位置</h4>
+      <div class="move-selects">
+        <div class="ms-group"><label>层 Layer</label><select id="moveLayer" onchange="onMoveLayerChange('${sid}')">
+          <option value="">选择层</option>`;
+
+  for(let l=1;l<=MAX_LAYER;l++){
+    // Skip current position
+    if (oldParsed && l === oldParsed.layer && !(oldParsed.layer===1 && smp.positions.length>1)) {
+      // Allow same layer if sample has multiple positions in L1
+    }
+    html+=`<option value="${l}">L${l} ${l===1?'(无架子)':'(架子)'}</option>`;
+  }
+
+  html+=`</select></div>
+        <div class="ms-group" id="moveColGroup" style="display:none"><label>列 Col</label><select id="moveCol" onchange="onMoveColRowChange('${sid}')"><option value="">-</option></select></div>
+        <div class="ms-group" id="moveRowGroup" style="display:none"><label>行 Row</label><select id="moveRow" onchange="onMoveRowChange('${sid}')"><option value="">-</option></select></div>
+        <div class="ms-group" id="moveSlotGroup" style="display:none"><label>格 Slot</label><select id="moveSlot" onchange="onMoveSlotPicked()"><option value="">-</option></select></div>
+      </div>
+      <div class="mp-note" id="moveNote">请先选择目标层</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="moveConfirmBtn" onclick="doMoveSample(${sid},'${oldCoord}')" disabled>确认移动</button>
+      <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+    </div>`;
+  modal.innerHTML=html;
+};
+
+window.onMoveLayerChange=function(sid){
+  const l=parseInt(document.getElementById('moveLayer').value);
+  const om=getOccupiedMap();
+  const smp=samples.find(s=>s.id===parseInt(sid));
+  document.getElementById('moveColGroup').style.display=l>=2?'':'none';
+  document.getElementById('moveRowGroup').style.display=l>=2?'':'none';
+  document.getElementById('moveSlotGroup').style.display='';
+  document.getElementById('moveNote').textContent='';
+  document.getElementById('moveNote').className='mp-note';
+  document.getElementById('moveConfirmBtn').disabled=true;
+
+  if(l===1){
+    const slotSel=document.getElementById('moveSlot');
+    slotSel.innerHTML='<option value="">选择槽位</option>';
+    for(let s=1;s<=20;s++){
+      const coord=makeCoord(1,0,0,s);
+      const occ=om[coord];
+      const isOwn = smp && smp.layer===1 && smp.positions.includes(s);
+      const label = occ ? (isOwn ? '(当前)' : '(已占)') : '(空闲)';
+      const disabled = occ && !isOwn;
+      slotSel.innerHTML+=`<option value="${s}" ${disabled?'disabled':''}>槽位 ${s} ${label}</option>`;
+    }
+  } else {
+    const cSel=document.getElementById('moveCol');
+    cSel.innerHTML='<option value="">选列</option>';
+    for(let c=1;c<=SHELF_COLS;c++) cSel.innerHTML+=`<option value="${c}">C${c}</option>`;
+    document.getElementById('moveRow').innerHTML='<option value="">-</option>';
+    document.getElementById('moveSlot').innerHTML='<option value="">-</option>';
+  }
+};
+
+window.onMoveColRowChange=function(sid){
+  const l=parseInt(document.getElementById('moveLayer').value);
+  const c=parseInt(document.getElementById('moveCol').value);
+  const rSel=document.getElementById('moveRow');
+  const om=getOccupiedMap();
+  document.getElementById('moveSlot').innerHTML='<option value="">-</option>';
+  document.getElementById('moveConfirmBtn').disabled=true;
+  document.getElementById('moveNote').textContent='';
+  document.getElementById('moveNote').className='mp-note';
+
+  if(!l||!c) return;
+  rSel.innerHTML='<option value="">选行</option>';
+  for(let r=1;r<=SHELF_ROWS;r++) rSel.innerHTML+=`<option value="${r}">R${r}</option>`;
+};
+
+// Build slot options when move dialog is shown — trigger on row change via onchange
+window.onMoveRowChange=function(sid){
+  const l=parseInt(document.getElementById('moveLayer').value);
+  const c=parseInt(document.getElementById('moveCol').value);
+  const r=parseInt(document.getElementById('moveRow').value);
+  const om=getOccupiedMap();
+  const slotSel=document.getElementById('moveSlot');
+  document.getElementById('moveConfirmBtn').disabled=true;
+  document.getElementById('moveNote').textContent='';
+  document.getElementById('moveNote').className='mp-note';
+
+  if(!l||!c||!r) { slotSel.innerHTML='<option value="">-</option>'; return; }
+  slotSel.innerHTML='<option value="">选择格子</option>';
+  for(let s=1;s<=DRAWER_SLOTS;s++){
+    const coord=makeCoord(l,c,r,s);
+    const occ=om[coord];
+    slotSel.innerHTML+=`<option value="${s}" ${occ?'disabled':''}>格${s} ${occ?'(已占)':'(空闲)'}</option>`;
+  }
+};
+
+window.onMoveSlotPicked=function(){
+  const note=document.getElementById('moveNote');
+  const btn=document.getElementById('moveConfirmBtn');
+  const val=document.getElementById('moveSlot').value;
+  if(val){
+    note.textContent='已选择新位置，点击确认移动即可';
+    note.className='mp-note success';
+    btn.disabled=false;
+  } else {
+    btn.disabled=true;
+  }
+};
+
+window.doMoveSample=async function(sid,oldCoord){
+  const smp=samples.find(s=>s.id===sid); if(!smp) return;
+  const l=parseInt(document.getElementById('moveLayer').value);
+  if(!l){ showToast('请选择目标层','error'); return; }
+
+  let newLayer=l, newCol=0, newRow=0, newPositions=[];
+  const oldParsed=parseCoord(oldCoord);
+
+  if(l===1){
+    const slot=parseInt(document.getElementById('moveSlot').value);
+    if(!slot){ showToast('请选择目标槽位','error'); return; }
+    // For L1, use the slot number as the position
+    // If sample already has multiple L1 positions, we replace the one at oldCoord
+    if(smp.layer===1){
+      // Sample is already in L1, replace old position
+      const oldSlot = oldParsed ? oldParsed.slot : null;
+      newPositions = smp.positions.filter(p => p !== oldSlot);
+      if(newPositions.includes(slot)){
+        showToast('该槽位已属于当前样品','error'); return;
+      }
+      newPositions.push(slot);
+      newPositions.sort((a,b)=>a-b);
+      newCol=0; newRow=0;
+    } else {
+      newPositions=[slot];
+      newCol=0; newRow=0;
+    }
+  } else {
+    const c=parseInt(document.getElementById('moveCol').value);
+    const r=parseInt(document.getElementById('moveRow').value);
+    const s=parseInt(document.getElementById('moveSlot').value);
+    if(!c||!r||!s){ showToast('请完整选择新位置','error'); return; }
+    newCol=c; newRow=r; newPositions=[s];
+  }
+
+  const om=getOccupiedMap();
+  // Check if new position is truly available
+  for(const pos of newPositions){
+    const testCoord=makeCoord(newLayer,newCol,newRow,pos);
+    const occ=om[testCoord];
+    if(occ && occ.id !== sid){
+      showToast(`目标位置 ${testCoord} 已被占用`,'error'); return;
+    }
+  }
+
+  try {
+    const body={ layer:newLayer, col:newCol, row:newRow, positions:newPositions };
+    await apiFetch(`/api/samples/${sid}`, { method:'PUT', body:JSON.stringify(body) });
+    // Remove old occupied slot from this sample's positions
+    if(smp.layer===oldParsed.layer && smp.col===oldParsed.col && smp.row===oldParsed.row){
+      // Remove old position from positions array (handled above for same-layer)
+    }
+    smp.layer=newLayer; smp.col=newCol; smp.row=newRow; smp.positions=newPositions;
+    updateHeaderStats();renderFreezers();
+    if(document.getElementById('tab-list').classList.contains('active')) renderTable();
+    closeModal();
+    const destCoord=makeCoord(newLayer,newCol,newRow,newPositions[0]);
+    showToast(`✅ 已将 ${smp.project} 移至 ${destCoord}`);
+  } catch(e){ showToast('⚠ 移动失败: '+e.message,'error'); }
 };
 
 window.switchToEntry=function(coord){

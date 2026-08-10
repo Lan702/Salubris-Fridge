@@ -235,16 +235,19 @@ app.post('/api/samples', authMiddleware, (req, res) => {
 // PUT update sample
 app.put('/api/samples/:id', authMiddleware, (req, res) => {
   const id = parseInt(req.params.id);
-  const { status, remark, positions } = req.body;
+  const { status, remark, positions, layer, col, row } = req.body;
   const updates = [];
   const vals = [];
   if (status !== undefined) { updates.push('status = ?'); vals.push(status); }
   if (remark !== undefined) { updates.push('remark = ?'); vals.push(remark); }
   if (positions !== undefined) { updates.push('positions = ?'); vals.push(JSON.stringify(positions)); }
+  if (layer !== undefined) { updates.push('layer = ?'); vals.push(layer); }
+  if (col !== undefined) { updates.push('col = ?'); vals.push(col); }
+  if (row !== undefined) { updates.push('row = ?'); vals.push(row); }
   if (updates.length === 0) return res.json({ success: false, message: 'no fields to update' });
   vals.push(id);
   db.prepare(`UPDATE samples SET ${updates.join(', ')} WHERE id = ?`).run(...vals);
-  broadcast({ type: 'sample_updated', id, status, remark, positions, updated_by: req.user.display_name });
+  broadcast({ type: 'sample_updated', id, status, remark, positions, layer, col, row, updated_by: req.user.display_name });
   res.json({ success: true });
 });
 
