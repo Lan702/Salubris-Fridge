@@ -794,6 +794,9 @@ function connectWS() {
           if (msg.status !== undefined) s.status = msg.status;
           if (msg.remark !== undefined) s.remark = msg.remark;
           if (msg.positions !== undefined) s.positions = msg.positions;
+          if (msg.layer !== undefined) s.layer = msg.layer;
+          if (msg.col !== undefined) s.col = msg.col;
+          if (msg.row !== undefined) s.row = msg.row;
           refreshUI();
         }
         break;
@@ -1258,9 +1261,8 @@ function renderFreezers(){
 
   allSlots.forEach(slot=>{
     slot.addEventListener('mouseenter',showTooltip); slot.addEventListener('mouseleave',hideTooltip);
-    slot.addEventListener('click',onSlotClick);
-    slot.addEventListener('click',e=>e.stopPropagation());
     if (isDesktop) {
+      slot.addEventListener('click',e=>e.stopPropagation());
       const occ = slot.dataset.occupied === 'true';
       if (occ) {
         slot.draggable = true;
@@ -1271,6 +1273,9 @@ function renderFreezers(){
       slot.addEventListener('dragenter',onDragEnter);
       slot.addEventListener('dragleave',onDragLeave);
       slot.addEventListener('drop',onDrop);
+    } else {
+      slot.addEventListener('click',onSlotClick);
+      slot.addEventListener('click',e=>e.stopPropagation());
     }
   });
   if (!isDesktop) {
@@ -1370,12 +1375,12 @@ function onDragStart(e) {
 
 function onDragEnd(e) {
   const slot = e.currentTarget;
-  slot.classList.remove('slot-dragging', 'l1-dragging');
-  // Clean up all drop targets
+  if (slot.isConnected) {
+    slot.classList.remove('slot-dragging', 'l1-dragging');
+  }
   document.querySelectorAll('.slot-drop-target, .slot-drop-invalid').forEach(el => {
     el.classList.remove('slot-drop-target', 'slot-drop-invalid');
   });
-  dragSourceCoord = null;
 }
 
 function onDragOver(e) {
