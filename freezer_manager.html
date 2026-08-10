@@ -187,6 +187,9 @@ tbody td.remark-cell:hover { color: var(--text); }
 .l1-slot:hover { transform: scale(1.08); z-index: 2; }
 .l1-slot .l1s-label { line-height: 1.1; }
 .l1-slot .l1s-num { font-size: 8px; opacity: 0.5; }
+/* Prevent child elements from intercepting drag events on L1 slots */
+body.dragging .l1-slot .l1s-label,
+body.dragging .l1-slot .l1s-num { pointer-events: none; }
 
 .tooltip { position: fixed; background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: var(--text); pointer-events: none; z-index: 200; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.4); max-width: 260px; }
 .tooltip .tt-title { font-weight: 600; color: var(--accent); margin-bottom: 4px; font-family: "Consolas", monospace; }
@@ -1372,8 +1375,7 @@ function onDragStart(e) {
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('text/plain', dragSourceCoord);
   slot.classList.add(slot.classList.contains('l1-slot') ? 'l1-dragging' : 'slot-dragging');
-  // Small delay so the drag image doesn't look weird
-  setTimeout(() => { if (slot.classList.contains('slot-dragging') || slot.classList.contains('l1-dragging')) {} }, 0);
+  document.body.classList.add('dragging');
 }
 
 function onDragEnd(e) {
@@ -1381,9 +1383,11 @@ function onDragEnd(e) {
   if (slot.isConnected) {
     slot.classList.remove('slot-dragging', 'l1-dragging');
   }
+  document.body.classList.remove('dragging');
   document.querySelectorAll('.slot-drop-target, .slot-drop-invalid').forEach(el => {
     el.classList.remove('slot-drop-target', 'slot-drop-invalid');
   });
+  dragSourceCoord = null;
 }
 
 function onDragOver(e) {
