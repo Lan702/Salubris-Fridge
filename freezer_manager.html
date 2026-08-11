@@ -342,19 +342,6 @@ tbody td.remark-cell:hover { color: var(--text); }
   thead th { font-size: 9px; }
   tbody td { font-size: 10px; }
 }
-
-/* ── Move Mode (位置变更) ── */
-.move-banner { display: none; position: sticky; top: 0; z-index: 50; background: linear-gradient(135deg, rgba(210,153,34,0.2), rgba(88,166,255,0.15)); border: 1px solid var(--yellow); border-radius: 10px; padding: 12px 20px; margin-bottom: 16px; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.move-banner.show { display: flex; }
-.move-banner .mb-text { font-size: 14px; color: var(--yellow); font-weight: 600; }
-.move-banner .mb-text .mb-project { color: var(--accent); }
-.move-banner .mb-btn { padding: 6px 16px; border-radius: 6px; border: 1px solid rgba(248,81,73,0.4); background: rgba(248,81,73,0.1); color: var(--red); font-size: 13px; cursor: pointer; white-space: nowrap; }
-.move-banner .mb-btn:hover { background: rgba(248,81,73,0.2); }
-body.move-mode .slot-empty { cursor: crosshair !important; animation: movePulse 1.2s ease-in-out infinite; }
-body.move-mode .slot-empty:hover { transform: scale(1.3); z-index: 5; box-shadow: 0 0 14px rgba(63,185,80,0.6); border-color: var(--green) !important; }
-body.move-mode .l1-slot.slot-empty { animation: movePulse 1.2s ease-in-out infinite; }
-body.move-mode .l1-slot.slot-empty:hover { transform: scale(1.15); box-shadow: 0 0 14px rgba(63,185,80,0.6); }
-@keyframes movePulse { 0%,100%{box-shadow:0 0 4px rgba(63,185,80,0.3)} 50%{box-shadow:0 0 10px rgba(63,185,80,0.6)} }
 </style>
 </head>
 <body>
@@ -489,7 +476,7 @@ body.move-mode .l1-slot.slot-empty:hover { transform: scale(1.15); box-shadow: 0
       <div class="scroll-area">
         <table>
           <thead><tr>
-            <th>入库日期</th><th>项目编号</th><th>状态</th><th class="hide-mobile">数量</th><th class="hide-mobile">备注</th><th>人员</th><th class="hide-mobile">位置坐标</th><th>定位</th><th class="hide-mobile">变更</th><th class="hide-mobile">录入者</th><th>操作</th>
+            <th>入库日期</th><th>项目编号</th><th>状态</th><th class="hide-mobile">数量</th><th class="hide-mobile">备注</th><th>人员</th><th class="hide-mobile">位置坐标</th><th>定位</th><th class="hide-mobile">录入者</th><th>操作</th>
           </tr></thead>
           <tbody id="sampleTbody"></tbody>
         </table>
@@ -499,10 +486,6 @@ body.move-mode .l1-slot.slot-empty:hover { transform: scale(1.15); box-shadow: 0
 
   <!-- Tab 3: Freezer Diagram -->
   <div class="tab-content" id="tab-freezer">
-    <div class="move-banner" id="moveBanner">
-      <div class="mb-text">🔄 正在为样品 <span class="mb-project" id="mbProject"></span> 选择新位置，请点击空闲格子</div>
-      <button class="mb-btn" onclick="exitMoveMode()">✘ 取消变更</button>
-    </div>
     <div class="freezer-toolbar">
       <div class="freezer-search"><span class="search-icon">🔍</span><input type="text" id="freezerSearch" placeholder="搜索项目编号 / 人员 / 备注 / 日期，高亮对应位置..."></div>
       <div class="legend">
@@ -770,7 +753,6 @@ const STATUS_COLORS = {
 };
 
 let samples = [];
-let moveMode = null; // { sampleId, project } when active
 
 // ── Server API ─────────────────────────────────────────
 async function loadSamples() {
@@ -1088,7 +1070,7 @@ function renderTable(){
   const fv = getFilteredSamples();
   const fLenStr = (samples.length!==fv.length)?` (筛选自 ${samples.length})`:'';
   if(fv.length===0){
-    tbody.innerHTML=`<tr><td colspan="11" class="empty-row">暂无匹配的样品记录${fLenStr}</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="10" class="empty-row">暂无匹配的样品记录${fLenStr}</td></tr>`;
     return;
   }
   tbody.innerHTML=fv.map(s=>{
@@ -1109,7 +1091,6 @@ function renderTable(){
       <td>${s.person||'<span style="color:var(--text-dim)">未填写</span>'}</td>
       <td class="coord-cell hide-mobile">${coords}</td>
       <td><button class="btn btn-secondary" style="padding:4px 12px;font-size:12px;border-color:var(--yellow);color:var(--yellow)" onclick="locateSample('${s.project}')" title="在冰箱示意图中定位">📍 定位</button></td>
-      <td class="hide-mobile"><button class="btn btn-secondary" style="padding:4px 12px;font-size:12px;border-color:var(--accent);color:var(--accent)" onclick="startMoveMode(${s.id})" title="在冰箱示意图中选择新位置">🔄 变更</button></td>
       <td class="creator-cell hide-mobile">${creator||'—'}</td>
       <td><button class="btn btn-danger" style="padding:4px 12px;font-size:12px" onclick="deleteSample(${s.id})">删除</button></td>
     </tr>`;
@@ -1150,67 +1131,6 @@ window.locateSample=function(project){
   document.querySelector('.tab[data-tab="freezer"]').click();
   showToast(`已定位项目: ${project}`);
 };
-
-// ── Move Mode (位置变更) ──
-window.startMoveMode=function(sampleId){
-  const smp=samples.find(s=>s.id===sampleId);
-  if(!smp) return;
-  moveMode={ sampleId: sampleId, project: smp.project };
-  // Clear freezer search so empty slots are visible
-  document.getElementById('freezerSearch').value='';
-  // Switch to freezer tab
-  document.querySelector('.tab[data-tab="freezer"]').click();
-  // Show banner
-  document.getElementById('mbProject').textContent=smp.project;
-  document.getElementById('moveBanner').classList.add('show');
-  document.body.classList.add('move-mode');
-  showToast(`🔄 请在冰箱示意图中点击空闲格子，为 ${smp.project} 选择新位置`);
-};
-
-window.exitMoveMode=function(){
-  moveMode=null;
-  document.getElementById('moveBanner').classList.remove('show');
-  document.body.classList.remove('move-mode');
-  if(document.getElementById('tab-freezer').classList.contains('active')) renderFreezers();
-};
-
-async function doQuickMove(sampleId, newCoord){
-  const smp=samples.find(s=>s.id===sampleId);
-  if(!smp) return;
-  const parsed=parseCoord(newCoord);
-  if(!parsed) return;
-  let newLayer, newCol, newRow, newPositions;
-  if(parsed.layer===1){
-    newLayer=1; newCol=0; newRow=0; newPositions=[parsed.slot];
-  } else {
-    newLayer=parsed.layer; newCol=parsed.col; newRow=parsed.row; newPositions=[parsed.slot];
-  }
-  // Double-check target is free
-  const om=getOccupiedMap();
-  const targetSmp=om[newCoord];
-  if(targetSmp && targetSmp.id!==sampleId){
-    showToast(`目标位置 ${newCoord} 已被占用`,'error');
-    return;
-  }
-  try {
-    const body={ layer:newLayer, col:newCol, row:newRow, positions:newPositions };
-    const result=await apiFetch(`/api/samples/${sampleId}`, { method:'PUT', body:JSON.stringify(body) });
-    if(!result.success) throw new Error(result.message||'更新失败');
-    smp.layer=newLayer; smp.col=newCol; smp.row=newRow; smp.positions=newPositions;
-    updateHeaderStats();
-    exitMoveMode();
-    renderFreezers();
-    if(document.getElementById('tab-list').classList.contains('active')) renderTable();
-    showToast(`✅ 已将 ${smp.project} 移至 ${newCoord}`);
-  } catch(e){
-    showToast('⚠ 位置变更失败: '+e.message,'error');
-  }
-}
-
-// Cancel move mode on Escape
-document.addEventListener('keydown', e=>{
-  if(e.key==='Escape' && moveMode) exitMoveMode();
-});
 
 searchInput.addEventListener('input', renderTable);
 filterStatus.addEventListener('change', renderTable);
@@ -1255,8 +1175,7 @@ function renderFreezers(){
 
   let l1Html = '';
   const l1Samples = samples.filter(s => s.layer === 1);
-  // In move mode, always render L1 grid (with empty slots) so user can pick an L1 target
-  if (l1Samples.length > 0 || moveMode) {
+  if (l1Samples.length > 0) {
     const l1Cells = [];
     l1Samples.forEach(smp => {
       const st2 = smp.status||'keep';
@@ -1270,19 +1189,6 @@ function renderFreezers(){
         </div>`);
       });
     });
-    // Add empty L1 slots when in move mode
-    if (moveMode) {
-      const maxL1Slot = 20;
-      for (let s = 1; s <= maxL1Slot; s++) {
-        const coord = makeCoord(1, 0, 0, s);
-        if (!om[coord]) {
-          l1Cells.push(`<div class="l1-slot slot-empty" data-coord="${coord}" data-occupied="false" title="${coord} | 空闲">
-            <span class="l1s-label" style="opacity:0.3">—</span>
-            <span class="l1s-num">L1-${s}</span>
-          </div>`);
-        }
-      }
-    }
     l1Html = `
       <div class="layer-section">
         <div class="layer-title">📦 L1 — 第1层（无架子，直接存放）<span class="lt-stats">已用 ${l1Used} 个位置</span></div>
@@ -1396,30 +1302,12 @@ function onDrawerClick(e){
 
 window.onModalSlotClick=function(e,coord,isOcc){
   e.stopPropagation();
-  if(moveMode){
-    if(isOcc){
-      showToast('该位置已被占用，请选择空闲格子','error');
-      return;
-    }
-    closeModal();
-    doQuickMove(moveMode.sampleId, coord);
-    return;
-  }
   if(isOcc) showSlotDetailModal(coord);
   else { closeModal(); switchToEntry(coord); }
 };
 
 function onSlotClick(e){
   const slot=e.currentTarget,coord=slot.dataset.coord,isOcc=slot.dataset.occupied==='true';
-  if(moveMode){
-    e.stopPropagation();
-    if(isOcc){
-      showToast('该位置已被占用，请选择空闲格子','error');
-      return;
-    }
-    doQuickMove(moveMode.sampleId, coord);
-    return;
-  }
   if(isOcc) showSlotDetailModal(coord);
   else { switchToEntry(coord); }
 }
