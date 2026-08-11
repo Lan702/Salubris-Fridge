@@ -391,7 +391,7 @@ tbody td.remark-cell:hover { color: var(--text); }
       <h2>📝 新增样品入库</h2>
       <div class="form-grid">
         <div class="form-group"><label>入库日期</label><input type="date" id="inpDate"></div>
-        <div class="form-group"><label>入库人员 <span style="color:var(--red)">*</span></label><input type="text" id="inpPerson" placeholder="必填，填写入库人员姓名" required></div>
+        <div class="form-group"><label>负责人 <span style="color:var(--red)">*</span></label><input type="text" id="inpPerson" placeholder="必填，填写负责人姓名" required></div>
         <div class="form-group"><label>项目编号</label><input type="text" id="inpProject" placeholder="输入3位数，如133"></div>
         <div class="form-group">
           <label>大层（从上往下数）</label>
@@ -1052,7 +1052,7 @@ btnSubmit.addEventListener('click',async ()=>{
   const positions=getCheckedPositions();
   if(positions.length===0){showToast('请至少选择一个小格','error');return;}
   if(!inpDate.value){showToast('请选择入库日期','error');return;}
-  if(!inpPerson.value.trim()){showToast('请填写入库人员','error');return;}
+  if(!inpPerson.value.trim()){showToast('请填写负责人','error');return;}
   if(!inpProject.value.trim()){showToast('请填写项目编号','error');return;}
   const l=parseInt(inpLayer.value);
   if(!l){showToast('请选择大层','error');return;}
@@ -1547,7 +1547,7 @@ function showSlotDetailModal(coord){
     <div class="info-row"><span class="label">坐标</span><span class="value" style="font-family:Consolas;color:var(--accent)">${coord}</span></div>
     <div class="info-row"><span class="label">项目编号</span><span class="value">${smp.project}</span></div>
     <div class="info-row"><span class="label">入库日期</span><span class="value">${smp.date}</span></div>
-    <div class="info-row"><span class="label">入库人员</span><span class="value">${smp.person||'未填写'}</span></div>
+    <div class="info-row"><span class="label">负责人</span><span class="value">${smp.person||'未填写'}</span></div>
     <div class="info-row"><span class="label">备注</span><span class="value">${remarkText||'<span style="color:#484f58">无</span>'}</span></div>
     <div class="info-row"><span class="label">状态</span><span class="value" style="color:${sc.fg}">● ${sl}</span></div>
     <div class="info-row"><span class="label">录入者</span><span class="value">${smp.creator_name||smp.created_by||'—'}</span></div>
