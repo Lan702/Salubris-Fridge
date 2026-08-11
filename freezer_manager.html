@@ -478,7 +478,7 @@ tbody td.remark-cell:hover { color: var(--text); }
       <div class="scroll-area">
         <table>
           <thead><tr>
-            <th>入库日期</th><th>项目编号</th><th>状态</th><th class="hide-mobile">数量</th><th class="hide-mobile">备注</th><th>人员</th><th class="hide-mobile">位置坐标</th><th>定位</th><th class="hide-mobile">录入者</th><th>操作</th>
+            <th>入库日期</th><th>项目编号</th><th>状态</th><th class="hide-mobile">数量</th><th class="hide-mobile">备注</th><th>人员</th><th class="hide-mobile">位置坐标</th><th>定位</th><th class="hide-mobile">录入者</th><th class="hide-mobile">最后编辑</th><th>操作</th>
           </tr></thead>
           <tbody id="sampleTbody"></tbody>
         </table>
@@ -517,6 +517,7 @@ tbody td.remark-cell:hover { color: var(--text); }
           <th>显示名</th>
           <th>角色</th>
           <th>注册时间</th>
+          <th style="width:80px">登录记录</th>
           <th style="width:80px">操作</th>
         </tr></thead><tbody></tbody></table>
       </div>
@@ -575,7 +576,22 @@ tbody td.remark-cell:hover { color: var(--text); }
     </div>
   </div>
 </div>
-<div class="toast" id="toast"></div>
+<div class="modal-overlay" id="loginLogModalOverlay">
+  <div class="modal" style="max-width:700px;max-height:80vh">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 id="loginLogTitle" style="font-size:16px;color:var(--text);margin:0">登录记录</h3>
+      <button class="btn btn-secondary" onclick="document.getElementById('loginLogModalOverlay').classList.remove('show')" style="padding:4px 12px;font-size:12px">✕ 关闭</button>
+    </div>
+    <div class="scroll-area" style="max-height:60vh">
+      <table style="width:100%;font-size:13px">
+        <thead><tr>
+          <th>时间</th><th>IP地址</th><th>设备/浏览器</th>
+        </tr></thead>
+        <tbody id="loginLogTbody"><tr><td colspan="3" style="text-align:center;color:var(--text-dim)">加载中...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
 
 <script>
 // ===================== AUTHENTICATION =====================
@@ -841,6 +857,7 @@ function connectWS() {
           if (msg.layer !== undefined) s.layer = msg.layer;
           if (msg.col !== undefined) s.col = msg.col;
           if (msg.row !== undefined) s.row = msg.row;
+          if (msg.updated_by !== undefined) s.updated_by = msg.updated_by;
           refreshUI();
         }
         break;
@@ -1120,7 +1137,7 @@ function renderTable(){
   const fv = getFilteredSamples();
   const fLenStr = (samples.length!==fv.length)?` (筛选自 ${samples.length})`:'';
   if(fv.length===0){
-    tbody.innerHTML=`<tr><td colspan="10" class="empty-row">暂无匹配的样品记录${fLenStr}</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="11" class="empty-row">暂无匹配的样品记录${fLenStr}</td></tr>`;
     return;
   }
   tbody.innerHTML=fv.map(s=>{
@@ -1129,6 +1146,7 @@ function renderTable(){
     const st=s.status||'keep',sc='status-'+st;
     const remarkText = (s.remark||'').trim();
     const creator = s.creator_name || s.created_by || '';
+    const lastEditor = s.updated_by || creator || '';
     return `<tr>
       <td>${s.date||'-'}</td>
       <td><span class="project-tag" style="background:${pc.bg};color:${pc.fg}">${s.project}</span></td>
@@ -1142,6 +1160,7 @@ function renderTable(){
       <td class="coord-cell hide-mobile">${coords}</td>
       <td><button class="btn btn-secondary" style="padding:4px 12px;font-size:12px;border-color:var(--yellow);color:var(--yellow)" onclick="locateSample(${s.id})" title="在冰箱示意图中定位至该样品坐标">📍 定位</button></td>
       <td class="creator-cell hide-mobile">${creator||'—'}</td>
+      <td class="hide-mobile" style="color:var(--text-dim);font-size:12px">${lastEditor||'—'}</td>
       <td><button class="btn btn-danger" style="padding:4px 12px;font-size:12px" onclick="deleteSample(${s.id})">删除</button>
       <button class="btn btn-secondary" style="padding:4px 10px;font-size:12px;border-color:var(--accent);color:var(--accent);margin-left:4px" onclick="openEditModal(${s.id})">✏️ 编辑</button></td>
     </tr>`;
@@ -1772,6 +1791,7 @@ function renderUserTable() {
       <td>${u.display_name}</td>
       <td>${roleBadge}</td>
       <td style="color:var(--text-dim);font-size:12px">${u.created_at ? u.created_at.slice(0,10) : '-'}</td>
+      <td><button class="btn btn-secondary" onclick="showUserLoginLogs(${u.id},'${u.username.replace(/'/g,"\\'")}')" style="padding:3px 8px;font-size:11px;border-color:var(--accent);color:var(--accent)">📋 查看</button></td>
       <td>${!isMe && u.role !== 'admin' ? `<button class="btn btn-danger" onclick="deleteUser(${u.id},'${u.display_name}')" style="padding:3px 10px;font-size:11px">删除</button>` : ''}</td>
     </tr>`;
   }).join('');
@@ -1789,6 +1809,32 @@ async function deleteUser(id, name) {
 }
 
 document.getElementById('userSearch').addEventListener('input', renderUserTable);
+
+async function showUserLoginLogs(userId, username) {
+  document.getElementById('loginLogTitle').textContent = `登录记录 — ${username}`;
+  document.getElementById('loginLogTbody').innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-dim)">加载中...</td></tr>';
+  document.getElementById('loginLogModalOverlay').classList.add('show');
+  try {
+    const logs = await apiFetch(`/api/login-logs?user_id=${userId}`);
+    const tbody = document.getElementById('loginLogTbody');
+    if (logs.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:20px">暂无登录记录</td></tr>';
+    } else {
+      tbody.innerHTML = logs.map(l => `<tr>
+        <td>${l.login_at || '-'}</td>
+        <td style="color:var(--text-dim);font-size:12px">${l.ip || '-'}</td>
+        <td style="color:var(--text-dim);font-size:11px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(l.user_agent||'').replace(/"/g,'&quot;')}">${l.user_agent || '-'}</td>
+      </tr>`).join('');
+    }
+  } catch(e) {
+    document.getElementById('loginLogTbody').innerHTML = `<tr><td colspan="3" style="text-align:center;color:var(--red)">加载失败: ${e.message}</td></tr>`;
+  }
+}
+
+// Close login log modal on overlay click
+document.getElementById('loginLogModalOverlay').addEventListener('click', function(e) {
+  if (e.target === this) this.classList.remove('show');
+});
 
 // Init
 initApp();

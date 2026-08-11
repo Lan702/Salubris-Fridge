@@ -71,6 +71,19 @@ db.exec(`
 // Add user_id column if upgrading from old schema
 try { db.exec('ALTER TABLE samples ADD COLUMN user_id INTEGER'); } catch(e) {}
 try { db.exec('ALTER TABLE samples ADD COLUMN created_by TEXT DEFAULT ""'); } catch(e) {}
+try { db.exec('ALTER TABLE samples ADD COLUMN updated_by TEXT DEFAULT ""'); } catch(e) {}
+
+// Login logs table
+db.exec(`
+  CREATE TABLE IF NOT EXISTS login_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    username TEXT NOT NULL,
+    ip TEXT DEFAULT '',
+    user_agent TEXT DEFAULT '',
+    login_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
 
 // Seed admin user if no users exist
 const userCount = db.prepare('SELECT COUNT(*) as n FROM users').get().n;
@@ -170,6 +183,13 @@ app.post('/api/auth/login', (req, res) => {
 
   const payload = { id: user.id, username: user.username, display_name: user.display_name, role: user.role };
   const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES });
+
+  // 记录登录日志
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+  const ua = req.headers['user-agent'] || '';
+  db.prepare('INSERT INTO login_logs (user_id, username, ip, user_agent) VALUES (?,?,?,?)')
+    .run(user.id, user.username, ip, ua);
+
   res.json({ token, user: payload });
 });
 
@@ -203,6 +223,21 @@ app.delete('/api/users/:id', authMiddleware, (req, res) => {
   res.json({ success: true, message: `已删除用户 ${user.display_name}` });
 });
 
+// GET login logs (admin only, or filter by user_id)
+app.get('/api/login-logs', authMiddleware, (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: '仅管理员可查看登录记录' });
+  }
+  const { user_id } = req.query;
+  let rows;
+  if (user_id) {
+    rows = db.prepare('SELECT * FROM login_logs WHERE user_id = ? ORDER BY login_at DESC LIMIT 100').all(parseInt(user_id));
+  } else {
+    rows = db.prepare('SELECT * FROM login_logs ORDER BY login_at DESC LIMIT 100').all();
+  }
+  res.json(rows);
+});
+
 // GET all samples (all users can see all samples)
 app.get('/api/samples', authMiddleware, (req, res) => {
   const rows = db.prepare('SELECT * FROM samples ORDER BY id').all();
@@ -210,7 +245,8 @@ app.get('/api/samples', authMiddleware, (req, res) => {
     ...r,
     row: r.row_val,
     positions: JSON.parse(r.positions),
-    creator_name: getCreatorName(r.user_id) || r.created_by || ''
+    creator_name: getCreatorName(r.user_id) || r.created_by || '',
+    updated_by: r.updated_by || r.created_by || ''
   })));
 });
 
@@ -218,15 +254,15 @@ app.get('/api/samples', authMiddleware, (req, res) => {
 app.post('/api/samples', authMiddleware, (req, res) => {
   const { date, person, project, layer, col, row, positions, status, remark } = req.body;
   const result = db.prepare(
-    'INSERT INTO samples (date, person, project, layer, col, row_val, positions, status, remark, user_id, created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?)'
+    'INSERT INTO samples (date, person, project, layer, col, row_val, positions, status, remark, user_id, created_by, updated_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)'
   ).run(date, person || '', project, layer, col || 0, row || 0, JSON.stringify(positions), status || 'keep', remark || '',
-       req.user.id, req.user.display_name);
+       req.user.id, req.user.display_name, req.user.display_name);
 
   const sample = {
     id: result.lastInsertRowid, date, person, project, layer,
     col: col || 0, row: row || 0, positions, status: status || 'keep',
     remark: remark || '', user_id: req.user.id, created_by: req.user.display_name,
-    creator_name: req.user.display_name
+    creator_name: req.user.display_name, updated_by: req.user.display_name
   };
   broadcast({ type: 'sample_added', sample });
   res.json(sample);
@@ -245,6 +281,8 @@ app.put('/api/samples/:id', authMiddleware, (req, res) => {
   if (layer !== undefined) { updates.push('layer = ?'); vals.push(layer); }
   if (col !== undefined) { updates.push('col = ?'); vals.push(col); }
   if (row !== undefined) { updates.push('row_val = ?'); vals.push(row); }
+  // 记录最后编辑人
+  updates.push('updated_by = ?'); vals.push(req.user.display_name);
   if (updates.length === 0) return res.json({ success: false, message: 'no fields to update' });
   vals.push(id);
   db.prepare(`UPDATE samples SET ${updates.join(', ')} WHERE id = ?`).run(...vals);
