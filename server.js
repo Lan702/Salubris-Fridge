@@ -244,7 +244,7 @@ app.put('/api/samples/:id', authMiddleware, (req, res) => {
   if (positions !== undefined) { updates.push('positions = ?'); vals.push(JSON.stringify(positions)); }
   if (layer !== undefined) { updates.push('layer = ?'); vals.push(layer); }
   if (col !== undefined) { updates.push('col = ?'); vals.push(col); }
-  if (row !== undefined) { updates.push('row = ?'); vals.push(row); }
+  if (row !== undefined) { updates.push('row_val = ?'); vals.push(row); }
   if (updates.length === 0) return res.json({ success: false, message: 'no fields to update' });
   vals.push(id);
   db.prepare(`UPDATE samples SET ${updates.join(', ')} WHERE id = ?`).run(...vals);
