@@ -175,6 +175,8 @@ tbody td.remark-cell:hover { color: var(--text); }
 .slot-clean { background: rgba(248,81,73,0.25); border-color: rgba(248,81,73,0.4); color: var(--red); }
 .slot-highlight { box-shadow: 0 0 10px rgba(210,153,34,0.8); border-color: var(--yellow) !important; animation: pulse 0.8s ease-in-out infinite; }
 @keyframes pulse { 0%,100%{box-shadow:0 0 8px rgba(210,153,34,0.7)} 50%{box-shadow:0 0 18px rgba(210,153,34,1)} }
+@keyframes locateFlash { 0%{outline: 3px solid var(--yellow); outline-offset: 2px; transform: scale(1.15);} 50%{outline: 3px solid var(--accent); outline-offset: 4px; transform: scale(1.25);} 100%{outline: 3px solid transparent; outline-offset: 2px; transform: scale(1);} }
+.locate-flash { animation: locateFlash 0.8s ease-out 2; z-index: 10; position: relative; }
 
 .l1-grid { display: flex; gap: 8px; flex-wrap: wrap; padding: 8px 0; }
 .l1-slot { width: 60px; height: 40px; border-radius: 5px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; border: 1px solid transparent; transition: all 0.15s; cursor: pointer; position: relative; gap: 1px; }
@@ -1138,7 +1140,7 @@ function renderTable(){
       <td class="remark-cell hide-mobile" title="${remarkText}">${remarkText||'<span style="color:#484f58">—</span>'}</td>
       <td>${s.person||'<span style="color:var(--text-dim)">未填写</span>'}</td>
       <td class="coord-cell hide-mobile">${coords}</td>
-      <td><button class="btn btn-secondary" style="padding:4px 12px;font-size:12px;border-color:var(--yellow);color:var(--yellow)" onclick="locateSample('${s.project}')" title="在冰箱示意图中定位">📍 定位</button></td>
+      <td><button class="btn btn-secondary" style="padding:4px 12px;font-size:12px;border-color:var(--yellow);color:var(--yellow)" onclick="locateSample(${s.id})" title="在冰箱示意图中定位至该样品坐标">📍 定位</button></td>
       <td class="creator-cell hide-mobile">${creator||'—'}</td>
       <td><button class="btn btn-danger" style="padding:4px 12px;font-size:12px" onclick="deleteSample(${s.id})">删除</button>
       <button class="btn btn-secondary" style="padding:4px 10px;font-size:12px;border-color:var(--accent);color:var(--accent);margin-left:4px" onclick="openEditModal(${s.id})">✏️ 编辑</button></td>
@@ -1175,10 +1177,33 @@ window.deleteSample=async function(id){
   } catch(e) { showToast('⚠ 删除失败: '+e.message,'error'); }
 };
 
-window.locateSample=function(project){
-  document.getElementById('freezerSearch').value = project;
+window.locateSample=function(id){
+  const s = samples.find(s => s.id === id);
+  if (!s) return;
+  // 切换到冰箱示意图
   document.querySelector('.tab[data-tab="freezer"]').click();
-  showToast(`已定位项目: ${project}`);
+  // 等待 DOM 渲染完成后，高亮对应坐标
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      let firstSlot = null;
+      s.positions.forEach(p => {
+        const coord = makeCoord(s.layer, s.col, s.row, p);
+        const el = document.querySelector(`[data-coord="${coord}"]`);
+        if (el) {
+          el.classList.add('locate-flash');
+          if (!firstSlot) firstSlot = el;
+          // 闪烁结束自动移除 class
+          setTimeout(() => el.classList.remove('locate-flash'), 1600);
+        }
+      });
+      if (firstSlot) {
+        firstSlot.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        showToast(`已定位: ${makeCoord(s.layer, s.col, s.row, s.positions[0])}`);
+      } else {
+        showToast('定位失败，请刷新冰箱示意图', 'error');
+      }
+    });
+  });
 };
 
 // ── 编辑样品弹窗 ──
