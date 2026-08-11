@@ -1228,6 +1228,18 @@ window.saveEdit=async function(){
   const positions = posRaw.split(',').map(p => parseInt(p.trim())).filter(p => !isNaN(p));
   if (positions.length === 0) { showToast('请输入有效的格子号', 'error'); return; }
 
+  // 检查坐标是否被其他样品占用
+  const conflict = samples.find(s => {
+    if (s.id === editingSampleId) return false; // 跳过自己
+    if (s.layer !== layer || s.col !== col || s.row !== row) return false; // 不同抽屉
+    return s.positions.some(p => positions.includes(p)); // 同一抽屉内有格子冲突
+  });
+  if (conflict) {
+    const coordStr = layer === 1 ? `L1-${positions.join(',')}` : `L${layer}C${col}R${row}-${positions.join(',')}`;
+    showToast(`该格子已被占用哦~ (被样品「${conflict.project}」占用)`, 'error');
+    return;
+  }
+
   try {
     const result = await apiFetch(`/api/samples/${editingSampleId}`, {
       method: 'PUT', body: JSON.stringify({ project, remark, layer, col, row, positions })
