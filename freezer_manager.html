@@ -585,13 +585,14 @@ tbody td.remark-cell:hover { color: var(--text); }
     <div class="scroll-area" style="max-height:60vh">
       <table style="width:100%;font-size:13px">
         <thead><tr>
-          <th>时间</th><th>IP地址</th><th>设备/浏览器</th>
+          <th>用户账号</th><th>登录时间</th>
         </tr></thead>
-        <tbody id="loginLogTbody"><tr><td colspan="3" style="text-align:center;color:var(--text-dim)">加载中...</td></tr></tbody>
+        <tbody id="loginLogTbody"><tr><td colspan="2" style="text-align:center;color:var(--text-dim)">加载中...</td></tr></tbody>
       </table>
     </div>
   </div>
 </div>
+<div class="toast" id="toast"></div>
 
 <script>
 // ===================== AUTHENTICATION =====================
@@ -1812,22 +1813,21 @@ document.getElementById('userSearch').addEventListener('input', renderUserTable)
 
 async function showUserLoginLogs(userId, username) {
   document.getElementById('loginLogTitle').textContent = `登录记录 — ${username}`;
-  document.getElementById('loginLogTbody').innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-dim)">加载中...</td></tr>';
+  document.getElementById('loginLogTbody').innerHTML = '<tr><td colspan="2" style="text-align:center;color:var(--text-dim)">加载中...</td></tr>';
   document.getElementById('loginLogModalOverlay').classList.add('show');
   try {
     const logs = await apiFetch(`/api/login-logs?user_id=${userId}`);
     const tbody = document.getElementById('loginLogTbody');
     if (logs.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:20px">暂无登录记录</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:var(--text-dim);padding:20px">暂无登录记录</td></tr>';
     } else {
       tbody.innerHTML = logs.map(l => `<tr>
+        <td>${l.username || '-'}</td>
         <td>${l.login_at || '-'}</td>
-        <td style="color:var(--text-dim);font-size:12px">${l.ip || '-'}</td>
-        <td style="color:var(--text-dim);font-size:11px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(l.user_agent||'').replace(/"/g,'&quot;')}">${l.user_agent || '-'}</td>
       </tr>`).join('');
     }
   } catch(e) {
-    document.getElementById('loginLogTbody').innerHTML = `<tr><td colspan="3" style="text-align:center;color:var(--red)">加载失败: ${e.message}</td></tr>`;
+    document.getElementById('loginLogTbody').innerHTML = `<tr><td colspan="2" style="text-align:center;color:var(--red)">加载失败: ${e.message}</td></tr>`;
   }
 }
 
