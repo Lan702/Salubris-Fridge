@@ -175,8 +175,8 @@ tbody td.remark-cell:hover { color: var(--text); }
 .slot-clean { background: rgba(248,81,73,0.25); border-color: rgba(248,81,73,0.4); color: var(--red); }
 .slot-highlight { box-shadow: 0 0 10px rgba(210,153,34,0.8); border-color: var(--yellow) !important; animation: pulse 0.8s ease-in-out infinite; }
 @keyframes pulse { 0%,100%{box-shadow:0 0 8px rgba(210,153,34,0.7)} 50%{box-shadow:0 0 18px rgba(210,153,34,1)} }
-@keyframes locateFlash { 0%{outline: 3px solid var(--yellow); outline-offset: 2px; transform: scale(1.15);} 50%{outline: 3px solid var(--accent); outline-offset: 4px; transform: scale(1.25);} 100%{outline: 3px solid transparent; outline-offset: 2px; transform: scale(1);} }
-.locate-flash { animation: locateFlash 0.8s ease-out 2; z-index: 10; position: relative; }
+@keyframes locateFlash { 0%{outline: 3px solid var(--yellow); outline-offset: 2px; transform: scale(1.1);} 50%{outline: 3px solid var(--accent); outline-offset: 4px; transform: scale(1.2);} 100%{outline: 3px solid var(--yellow); outline-offset: 2px; transform: scale(1.1);} }
+.locate-flash { animation: locateFlash 1.2s ease-in-out infinite; z-index: 10; position: relative; }
 
 .l1-grid { display: flex; gap: 8px; flex-wrap: wrap; padding: 8px 0; }
 .l1-slot { width: 60px; height: 40px; border-radius: 5px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; border: 1px solid transparent; transition: all 0.15s; cursor: pointer; position: relative; gap: 1px; }
@@ -213,9 +213,9 @@ tbody td.remark-cell:hover { color: var(--text); }
 .modal-drawer-slot:hover { transform: scale(1.08); }
 .modal-drawer-slot .mds-num { font-size: 10px; opacity: 0.6; }
 
-.toast { position: fixed; bottom: 30px; right: 30px; background: var(--panel2); border: 1px solid var(--green); border-radius: 8px; padding: 12px 20px; color: var(--green); font-size: 14px; z-index: 400; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
-.toast.show { display: block; animation: slideIn 0.3s ease; }
-@keyframes slideIn { from{transform:translateX(100px);opacity:0} to{transform:translateX(0);opacity:1} }
+.toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--panel2); border: 1px solid var(--green); border-radius: 10px; padding: 16px 28px; color: var(--green); font-size: 16px; font-weight: 600; z-index: 500; display: none; box-shadow: 0 8px 32px rgba(0,0,0,0.5); text-align: center; min-width: 260px; }
+.toast.show { display: block; animation: toastIn 0.35s ease; }
+@keyframes toastIn { from{transform:translate(-50%,-50%) scale(0.8);opacity:0} to{transform:translate(-50%,-50%) scale(1);opacity:1} }
 .toast.error { border-color: var(--red); color: var(--red); }
 
 .stats-row { display: flex; gap: 16px; margin-bottom: 20px; }
@@ -315,7 +315,7 @@ tbody td.remark-cell:hover { color: var(--text); }
   .modal-drawer-slot { width: 42px; height: 42px; font-size: 10px; }
 
   /* Toast */
-  .toast { bottom: 16px; right: 12px; left: 12px; text-align: center; font-size: 12px; padding: 10px 14px; }
+  .toast { top: 50%; bottom: auto; left: 50%; right: auto; transform: translate(-50%, -50%); font-size: 14px; padding: 14px 24px; min-width: 220px; }
 
   /* Auth card */
   .auth-card { padding: 24px; }
@@ -1180,6 +1180,8 @@ window.deleteSample=async function(id){
 window.locateSample=function(id){
   const s = samples.find(s => s.id === id);
   if (!s) return;
+  // 清除上一次定位的高亮
+  document.querySelectorAll('.locate-flash').forEach(el => el.classList.remove('locate-flash'));
   // 切换到冰箱示意图
   document.querySelector('.tab[data-tab="freezer"]').click();
   // 等待 DOM 渲染完成后，高亮对应坐标
@@ -1192,8 +1194,6 @@ window.locateSample=function(id){
         if (el) {
           el.classList.add('locate-flash');
           if (!firstSlot) firstSlot = el;
-          // 闪烁结束自动移除 class
-          setTimeout(() => el.classList.remove('locate-flash'), 1600);
         }
       });
       if (firstSlot) {
