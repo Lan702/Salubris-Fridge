@@ -527,15 +527,43 @@ tbody td.remark-cell:hover { color: var(--text); }
 <div class="tooltip" id="tooltip"></div>
 <div class="modal-overlay" id="modalOverlay"><div class="modal" id="modalContent"></div></div>
 <div class="modal-overlay" id="editModalOverlay">
-  <div class="modal" style="max-width:420px">
+  <div class="modal" style="max-width:440px">
     <h3 id="editSampleTitle" style="font-size:16px;margin-bottom:18px;color:var(--text)">编辑样品</h3>
     <div class="form-group" style="margin-bottom:14px">
       <label>项目编号</label>
       <input type="text" id="editProject" placeholder="请输入项目编号">
     </div>
-    <div class="form-group" style="margin-bottom:18px">
+    <div class="form-group" style="margin-bottom:14px">
       <label>备注</label>
-      <textarea id="editRemark" rows="3" placeholder="请输入备注信息（可选）"></textarea>
+      <textarea id="editRemark" rows="2" placeholder="请输入备注信息（可选）"></textarea>
+    </div>
+    <div style="margin-bottom:12px;font-size:13px;color:var(--text-dim);font-weight:500">📍 位置坐标</div>
+    <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div class="form-group">
+        <label>层 (Layer)</label>
+        <select id="editLayer" onchange="onEditLayerChange()">
+          <option value="1">L1 — 第1层（直接存放）</option>
+          <option value="2">L2 — 第2层（架子存放）</option>
+        </select>
+      </div>
+      <div class="form-group" id="editColGroup">
+        <label>列 (Col)</label>
+        <select id="editCol">
+          <option value="1">C1</option><option value="2">C2</option><option value="3">C3</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px" id="editRowPosGroup">
+      <div class="form-group">
+        <label>行 (Row)</label>
+        <select id="editRow">
+          <option value="1">R1</option><option value="2">R2</option><option value="3">R3</option><option value="4">R4</option><option value="5">R5</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>格子号 (Positions)</label>
+        <input type="text" id="editPositions" placeholder="如 1,2,3（逗号分隔）">
+      </div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeEditModal()">取消</button>
@@ -1160,6 +1188,11 @@ window.openEditModal=function(id){
   editingSampleId = id;
   document.getElementById('editProject').value = s.project || '';
   document.getElementById('editRemark').value = s.remark || '';
+  document.getElementById('editLayer').value = s.layer || 2;
+  document.getElementById('editCol').value = s.col || 1;
+  document.getElementById('editRow').value = s.row || 1;
+  document.getElementById('editPositions').value = (s.positions || []).join(',');
+  onEditLayerChange();
   document.getElementById('editSampleTitle').textContent = `编辑样品 #${id}`;
   document.getElementById('editModalOverlay').classList.add('show');
 };
@@ -1169,18 +1202,37 @@ window.closeEditModal=function(){
   editingSampleId = null;
 };
 
+window.onEditLayerChange=function(){
+  const layer = parseInt(document.getElementById('editLayer').value);
+  const isL1 = layer === 1;
+  document.getElementById('editColGroup').style.display = isL1 ? 'none' : '';
+  const rowSelect = document.getElementById('editRow').parentElement;
+  rowSelect.style.display = isL1 ? 'none' : '';
+  const posGroup = document.getElementById('editPositions').parentElement;
+  posGroup.style.gridColumn = isL1 ? '1 / -1' : '';
+  document.getElementById('editRowPosGroup').style.gridTemplateColumns = isL1 ? '1fr' : '1fr 1fr';
+};
+
 window.saveEdit=async function(){
   if (!editingSampleId) return;
   const project = document.getElementById('editProject').value.trim();
   const remark = document.getElementById('editRemark').value.trim();
   if (!project) { showToast('项目编号不能为空', 'error'); return; }
+
+  const layer = parseInt(document.getElementById('editLayer').value) || 2;
+  const col = layer === 1 ? 0 : (parseInt(document.getElementById('editCol').value) || 1);
+  const row = layer === 1 ? 0 : (parseInt(document.getElementById('editRow').value) || 1);
+  const posRaw = document.getElementById('editPositions').value.trim();
+  const positions = posRaw.split(',').map(p => parseInt(p.trim())).filter(p => !isNaN(p));
+  if (positions.length === 0) { showToast('请输入有效的格子号', 'error'); return; }
+
   try {
     const result = await apiFetch(`/api/samples/${editingSampleId}`, {
-      method: 'PUT', body: JSON.stringify({ project, remark })
+      method: 'PUT', body: JSON.stringify({ project, remark, layer, col, row, positions })
     });
     if (!result.success) throw new Error(result.message || '保存失败');
     const s = samples.find(s => s.id === editingSampleId);
-    if (s) { s.project = project; s.remark = remark; }
+    if (s) { s.project = project; s.remark = remark; s.layer = layer; s.col = col; s.row = row; s.positions = positions; }
     renderTable();
     if (document.getElementById('tab-freezer').classList.contains('active')) renderFreezers();
     closeEditModal();
