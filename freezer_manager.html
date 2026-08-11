@@ -526,6 +526,23 @@ tbody td.remark-cell:hover { color: var(--text); }
 
 <div class="tooltip" id="tooltip"></div>
 <div class="modal-overlay" id="modalOverlay"><div class="modal" id="modalContent"></div></div>
+<div class="modal-overlay" id="editModalOverlay">
+  <div class="modal" style="max-width:420px">
+    <h3 id="editSampleTitle" style="font-size:16px;margin-bottom:18px;color:var(--text)">编辑样品</h3>
+    <div class="form-group" style="margin-bottom:14px">
+      <label>项目编号</label>
+      <input type="text" id="editProject" placeholder="请输入项目编号">
+    </div>
+    <div class="form-group" style="margin-bottom:18px">
+      <label>备注</label>
+      <textarea id="editRemark" rows="3" placeholder="请输入备注信息（可选）"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeEditModal()">取消</button>
+      <button class="btn btn-primary" style="background:var(--accent);color:#fff;border:none;padding:8px 20px;border-radius:6px;font-size:13px;cursor:pointer" onclick="saveEdit()">保存</button>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -787,6 +804,7 @@ function connectWS() {
         if (s) {
           if (msg.status !== undefined) s.status = msg.status;
           if (msg.remark !== undefined) s.remark = msg.remark;
+          if (msg.project !== undefined) s.project = msg.project;
           if (msg.positions !== undefined) s.positions = msg.positions;
           if (msg.layer !== undefined) s.layer = msg.layer;
           if (msg.col !== undefined) s.col = msg.col;
@@ -1092,7 +1110,8 @@ function renderTable(){
       <td class="coord-cell hide-mobile">${coords}</td>
       <td><button class="btn btn-secondary" style="padding:4px 12px;font-size:12px;border-color:var(--yellow);color:var(--yellow)" onclick="locateSample('${s.project}')" title="在冰箱示意图中定位">📍 定位</button></td>
       <td class="creator-cell hide-mobile">${creator||'—'}</td>
-      <td><button class="btn btn-danger" style="padding:4px 12px;font-size:12px" onclick="deleteSample(${s.id})">删除</button></td>
+      <td><button class="btn btn-danger" style="padding:4px 12px;font-size:12px" onclick="deleteSample(${s.id})">删除</button>
+      <button class="btn btn-secondary" style="padding:4px 10px;font-size:12px;border-color:var(--accent);color:var(--accent);margin-left:4px" onclick="openEditModal(${s.id})">✏️ 编辑</button></td>
     </tr>`;
   }).join('');
   document.querySelectorAll('.status-select').forEach(sel=>{sel.className='status-select status-'+sel.value;});
@@ -1131,6 +1150,50 @@ window.locateSample=function(project){
   document.querySelector('.tab[data-tab="freezer"]').click();
   showToast(`已定位项目: ${project}`);
 };
+
+// ── 编辑样品弹窗 ──
+let editingSampleId = null;
+
+window.openEditModal=function(id){
+  const s = samples.find(s => s.id === id);
+  if (!s) return;
+  editingSampleId = id;
+  document.getElementById('editProject').value = s.project || '';
+  document.getElementById('editRemark').value = s.remark || '';
+  document.getElementById('editSampleTitle').textContent = `编辑样品 #${id}`;
+  document.getElementById('editModalOverlay').classList.add('show');
+};
+
+window.closeEditModal=function(){
+  document.getElementById('editModalOverlay').classList.remove('show');
+  editingSampleId = null;
+};
+
+window.saveEdit=async function(){
+  if (!editingSampleId) return;
+  const project = document.getElementById('editProject').value.trim();
+  const remark = document.getElementById('editRemark').value.trim();
+  if (!project) { showToast('项目编号不能为空', 'error'); return; }
+  try {
+    const result = await apiFetch(`/api/samples/${editingSampleId}`, {
+      method: 'PUT', body: JSON.stringify({ project, remark })
+    });
+    if (!result.success) throw new Error(result.message || '保存失败');
+    const s = samples.find(s => s.id === editingSampleId);
+    if (s) { s.project = project; s.remark = remark; }
+    renderTable();
+    if (document.getElementById('tab-freezer').classList.contains('active')) renderFreezers();
+    closeEditModal();
+    showToast('已保存修改');
+  } catch(e) { showToast('⚠ 保存失败: '+e.message, 'error'); }
+};
+
+// Esc 关闭弹窗
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (document.getElementById('editModalOverlay').classList.contains('show')) closeEditModal();
+  }
+});
 
 searchInput.addEventListener('input', renderTable);
 filterStatus.addEventListener('change', renderTable);
@@ -1577,6 +1640,7 @@ function hideTooltip(){document.getElementById('tooltip').style.display='none';}
 
 document.getElementById('freezerSearch').addEventListener('input',renderFreezers);
 document.getElementById('modalOverlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
+document.getElementById('editModalOverlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeEditModal();});
 
 function showToast(msg,type='success'){
   const toast=document.getElementById('toast');
